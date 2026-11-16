@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Acceso | Voltio Minimalista</title>
+  
+  <link rel="stylesheet" href="css/minimalist.css">
+  <style>
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: var(--paper);
+      position: relative;
+    }
+    .auth-theme-toggle {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+    }
+    .auth-card-clean {
+      width: 100%;
+      max-width: 420px;
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 36px 32px;
+      box-shadow: 0 16px 40px rgba(23, 34, 29, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    :root[data-theme='dark'] .auth-card-clean {
+      background: var(--white);
+      border-color: var(--line);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    }
+    :root[data-theme='dark'] .auth-tabs-clean {
+      background: var(--paper);
+      border-color: var(--line);
+    }
+    :root[data-theme='dark'] .auth-tab-btn {
+      color: var(--muted);
+    }
+    .auth-header-clean {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .auth-tabs-clean {
+      display: flex;
+      background: var(--paper);
+      padding: 4px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+    .auth-tab-btn {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      padding: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.2s ease;
+    }
+    .auth-tab-btn.active {
+      background: var(--green);
+      color: var(--navy);
+      box-shadow: 0 4px 16px rgba(185, 244, 70, 0.28);
+      font-weight: 800;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="auth-theme-toggle">
+      <button id="theme-toggle-btn" class="theme-button" type="button" aria-label="Cambiar tema">
+      </button>
+    </div>
+
+    <div class="auth-card-clean">
+      
+      <!-- Logo Superior -->
+      <div class="auth-header-clean">
+        <div class="logo-mark" style="width: 44px; height: 44px; border-radius: 12px; margin-bottom: 4px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
+          </svg>
+        </div>
+        <h2 style="font-family: 'Manrope', sans-serif; font-size: 22px; margin: 0; font-weight: 700;">Voltio Instituto</h2>
+        <p style="font-size: 12px; color: var(--muted); margin: 0;">Sistema de recarga de vehículos eléctricos</p>
+      </div>
+
+      <!-- Selector de Pestaña -->
+      <div class="auth-tabs-clean">
+        <button id="tab-login" class="auth-tab-btn active" type="button">Entrar</button>
+        <button id="tab-register" class="auth-tab-btn" type="button">Crear cuenta</button>
+      </div>
+
+      <div id="auth-alert" class="alert-clean"></div>
+
+      <!-- Formulario Login -->
+      <form id="login-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="field-group">
+          <label class="label-text" for="login-email">Correo Electrónico</label>
+          <input type="email" id="login-email" class="input-field" placeholder="ejemplo@instituto.es" required autocomplete="email">
+        </div>
+
+        <div class="field-group">
+          <label class="label-text" for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="input-field" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" id="btn-login-submit" class="primary-button" style="height: 48px; border-radius: 12px; justify-content: center; font-size: 13px; margin-top: 6px;">
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <!-- Formulario Registro -->
+      <form id="register-form" style="display: none; flex-direction: column; gap: 14px;">
+        <div class="field-group">
+          <label class="label-text" for="reg-name">Nombre y Apellidos</label>
+          <input type="text" id="reg-name" class="input-field" placeholder="Carlos Gómez" required>
+        </div>
+
+        <div class="field-group">
+          <label class="label-text" for="reg-email">Correo Institucional</label>
+          <input type="email" id="reg-email" class="input-field" placeholder="carlos@instituto.es" required>
+        </div>
+
+        <div class="field-group">
+          <label class="label-text" for="reg-password">Contraseña</label>
+          <input type="password" id="reg-password" class="input-field" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+        </div>
+
+        <div class="field-group">
+          <label class="label-text" for="reg-role">Rol en el Centro</label>
+          <select id="reg-role" class="input-field" required>
+            <option value="alumno">Alumno (límite 2 horas)</option>
+            <option value="profesor">Profesor (límite 4 horas)</option>
+          </select>
+        </div>
+
+        <div class="field-group" id="group-reg-class">
+          <label class="label-text" for="reg-class">Clase / Grupo Matriculado</label>
+          <select id="reg-class" class="input-field">
+            <option value="">Cargando clases disponibles...</option>
+          </select>
+          <small style="font-size: 11px; color: var(--muted); margin-top: 2px;">Selecciona tu curso según los horarios lectivos del instituto.</small>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="field-group">
+            <label class="label-text" for="reg-brand">Marca</label>
+            <input type="text" id="reg-brand" class="input-field" placeholder="Tesla, Nissan...">
+          </div>
+          <div class="field-group">
+            <label class="label-text" for="reg-model">Modelo</label>
+            <input type="text" id="reg-model" class="input-field" placeholder="Leaf, Model 3...">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="label-text" for="reg-plate">Matrícula (opcional)</label>
+          <input type="text" id="reg-plate" class="input-field" placeholder="1234-XYZ">
+        </div>
+
+        <button type="submit" id="btn-reg-submit" class="primary-button" style="height: 48px; border-radius: 12px; justify-content: center; font-size: 13px; margin-top: 6px;">
+          Completar Registro
+        </button>
+      </form>
+
+      <div style="padding: 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); text-align: center; font-size: 11px; color: var(--muted); line-height: 1.5;">
+        Acceso Administrador de Prueba:<br>
+        <strong style="color: var(--ink);">admin@instituto.es</strong> / <strong style="color: var(--ink);">Admin123*</strong>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module" src="js/views/auth.js"></script>
+</body>
+</html>

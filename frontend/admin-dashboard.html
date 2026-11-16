@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Voltio | Panel de Administración</title>
+  
+  <link rel="stylesheet" href="css/minimalist.css">
+  <style>
+    .admin-nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 4px;
+    }
+    .admin-tab-btn {
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      border: 0;
+      background: transparent;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .admin-tab-btn.active {
+      color: var(--ink);
+      border-bottom-color: var(--green-dark);
+    }
+    .admin-tab-pane {
+      display: none;
+    }
+    .admin-tab-pane.active {
+      display: block;
+    }
+    .bookings-filter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .bookings-filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .booking-filter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 7px 14px;
+      background: var(--white);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .booking-filter-btn:hover {
+      border-color: var(--muted);
+      color: var(--ink);
+    }
+    .booking-filter-btn.active {
+      background: var(--ink);
+      color: var(--white);
+      border-color: var(--ink);
+    }
+    :root[data-theme='dark'] .booking-filter-btn.active {
+      background: var(--green);
+      color: var(--navy);
+      border-color: var(--green);
+    }
+    .booking-filter-count {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: rgba(111, 120, 115, 0.15);
+      color: inherit;
+    }
+    .booking-filter-btn.active .booking-filter-count {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    :root[data-theme='dark'] .booking-filter-btn.active .booking-filter-count {
+      background: rgba(22, 52, 43, 0.2);
+    }
+    .schedule-import-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .schedule-dropzone {
+      border: 2px dashed var(--line);
+      border-radius: 16px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--paper);
+    }
+    .schedule-dropzone:hover,
+    .schedule-dropzone.dragover {
+      border-color: var(--green-dark);
+      background: var(--green-soft);
+    }
+    .schedule-badge-cfs {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .schedule-badge-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--green-soft);
+      color: var(--green-dark);
+    }
+    .schedule-group-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .schedule-group-card.is-open {
+      box-shadow: 0 10px 26px rgba(23, 34, 29, 0.06);
+    }
+    .schedule-group-header {
+      padding: 16px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--white);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+    .schedule-group-header:hover {
+      background: var(--paper);
+    }
+    .schedule-group-card.is-open .schedule-group-header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .schedule-toggle-arrow {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      background: var(--white);
+      color: var(--ink);
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.25s ease, border-color 0.2s ease, background 0.2s ease;
+      flex-shrink: 0;
+    }
+    .schedule-group-header:hover .schedule-toggle-arrow {
+      border-color: var(--muted);
+    }
+    .schedule-group-card.is-open .schedule-toggle-arrow {
+      transform: rotate(180deg);
+      background: var(--green);
+      color: var(--navy);
+      border-color: var(--green);
+    }
+    .schedule-table-wrap {
+      overflow-x: auto;
+      display: none;
+    }
+    .schedule-group-card.is-open .schedule-table-wrap {
+      display: block;
+    }
+    .schedule-grid-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 780px;
+      font-size: 12px;
+    }
+    .schedule-grid-table th,
+    .schedule-grid-table td {
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      padding: 12px 14px;
+      vertical-align: top;
+      text-align: left;
+    }
+    .schedule-grid-table th:last-child,
+    .schedule-grid-table td:last-child {
+      border-right: 0;
+    }
+    .schedule-grid-table tr:last-child td {
+      border-bottom: 0;
+    }
+    .schedule-grid-table thead th {
+      background: var(--white);
+      font-family: 'Manrope', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      padding: 14px;
+    }
+    .schedule-time-col {
+      width: 125px;
+      white-space: nowrap;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 700;
+      color: var(--ink);
+      background: rgba(111, 120, 115, 0.04);
+    }
+    .schedule-cell-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+    }
+    .schedule-cell-item.is-highlighted {
+      background: var(--green-soft);
+      border-color: var(--green);
+    }
+    .schedule-cell-title {
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.35;
+      font-size: 12px;
+    }
+    .schedule-cell-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
+          </svg>
+        </span>
+        <span>voltio</span>
+      </div>
+
+      <nav class="side-nav">
+        <a class="nav-item" href="index.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9 20v-6h6v6"/>
+          </svg>
+          <span>Inicio</span>
+        </a>
+        <a class="nav-item" href="reservas.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18"/>
+          </svg>
+          <span>Reservas</span>
+        </a>
+        <a class="nav-item active" href="admin-dashboard.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>
+          </svg>
+          <span>Admin</span>
+        </a>
+      </nav>
+
+      <div class="side-foot">
+        <button class="user-mini">
+          <span class="avatar" id="user-avatar-initials" style="background: var(--green-soft); color: var(--green-dark);">AD</span>
+          <span class="user-mini-info">
+            <strong id="user-display-name">Administrador</strong>
+            <small>Panel Global</small>
+          </span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-titles">
+          <span class="eyebrow">Gestión Central</span>
+          <h1>Consola de Administración</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="theme-toggle-btn" class="theme-button" type="button"></button>
+          <button id="btn-logout" class="icon-button" title="Cerrar Sesión" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px;">
+          <div>
+            <span class="kicker">
+              <i></i> Sistema Operativo en Tiempo Real
+            </span>
+            <h2 style="font-family: 'Manrope', sans-serif; font-size: 28px; margin: 8px 0 0; font-weight: 700;">Visión General</h2>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="btn-open-import-schedule" class="secondary-button" type="button" style="color: var(--ink); border-color: var(--line); background: var(--white);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Importar horario (XML / JSON)
+            </button>
+            <button id="btn-open-create-charger" class="primary-button" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nuevo cargador
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Tarjetas de Métricas Clave (Stats Grid Minimalista) -->
+        <section class="stats-grid">
+          <article class="stat-card-clean">
+            <span class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+            </span>
+            <div>
+              <small>Usuarios registrados</small>
+              <strong id="stat-users">0</strong>
+              <p>Alumnos, profesores y admin</p>
+            </div>
+          </article>
+
+          <article class="stat-card-clean">
+            <span class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/></svg>
+            </span>
+            <div>
+              <small>Puntos de recarga</small>
+              <strong id="stat-chargers">0</strong>
+              <p>Infraestructura instalada</p>
+            </div>
+          </article>
+
+          <article class="stat-card-clean">
+            <span class="stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18"/></svg>
+            </span>
+            <div>
+              <small>Reservas activas ahora</small>
+              <strong id="stat-active-bookings">0</strong>
+              <p><b id="stat-total-bookings">0</b> históricas en total</p>
+            </div>
+          </article>
+        </section>
+
+        <div id="admin-alert" class="alert-clean" style="margin-top: 20px;"></div>
+
+        <!-- Pestañas de Gestión -->
+        <div class="admin-nav-tabs">
+          <button class="admin-tab-btn active" data-tab="tab-chargers" type="button">Cargadores</button>
+          <button class="admin-tab-btn" data-tab="tab-bookings" type="button">Todas las reservas</button>
+          <button class="admin-tab-btn" data-tab="tab-users" type="button">Directorio de usuarios</button>
+          <button class="admin-tab-btn" data-tab="tab-auto-dispatch" type="button">Reparto Inteligente</button>
+          <button class="admin-tab-btn" data-tab="tab-schedules" type="button">Horarios de clases</button>
+        </div>
+
+        <!-- Panel 1: Cargadores -->
+        <section id="tab-chargers" class="admin-tab-pane active">
+          <div class="history-list" id="chargers-table-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando cargadores...</div>
+          </div>
+        </section>
+
+        <!-- Panel 2: Reservas -->
+        <section id="tab-bookings" class="admin-tab-pane">
+          <div class="bookings-filter-bar">
+            <div class="bookings-filter-pills" role="group" aria-label="Filtrar reservas por estado">
+              <button type="button" class="booking-filter-btn active" data-status-filter="all">
+                Todas <span class="booking-filter-count" id="count-bookings-all">0</span>
+              </button>
+              <button type="button" class="booking-filter-btn" data-status-filter="active">
+                Reserva activa <span class="booking-filter-count" id="count-bookings-active">0</span>
+              </button>
+              <button type="button" class="booking-filter-btn" data-status-filter="completed">
+                Finalizada <span class="booking-filter-count" id="count-bookings-completed">0</span>
+              </button>
+              <button type="button" class="booking-filter-btn" data-status-filter="cancelled">
+                Cancelada <span class="booking-filter-count" id="count-bookings-cancelled">0</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="history-list" id="bookings-table-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando reservas globales...</div>
+          </div>
+        </section>
+
+        <!-- Panel 3: Usuarios -->
+        <section id="tab-users" class="admin-tab-pane">
+          <div class="history-list" id="users-table-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando usuarios...</div>
+          </div>
+        </section>
+
+        <!-- Panel 4: Reparto Inteligente de Horas -->
+        <section id="tab-auto-dispatch" class="admin-tab-pane">
+          <div class="schedule-import-card" style="margin-bottom: 20px;">
+            <div>
+              <span class="eyebrow">Algoritmo de Asignación Automática</span>
+              <h3 style="margin: 4px 0 4px; font-size: 16px;">Reparto Equitativo de Horas Lectivas</h3>
+              <p style="margin: 0; font-size: 12px; color: var(--muted);">
+                Fórmula del centro: <b>Horas totales del curso / Alumnos con vehículo</b>. La aplicación asigna automáticamente las reservas priorizando a los que menos horas acumuladas lleven.
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btn-edit-algorithm-settings" class="secondary-button" style="border-color: var(--line); background: var(--white);">
+                ⚙️ Ajustar Parámetros & Horas
+              </button>
+              <button type="button" id="btn-open-scheduler-modal" class="secondary-button" style="border-color: var(--line); background: var(--white); color: var(--green-dark); font-weight: 700;">
+                ⏰ Programar Hora Automática
+              </button>
+              <button type="button" id="btn-run-auto-dispatch" class="primary-button">
+                ⚡ Ejecutar Asignación Ahora
+              </button>
+            </div>
+          </div>
+
+          <!-- Tarjeta Estado de Programación Automática -->
+          <div style="background: var(--white); border: 1px solid var(--line); border-radius: 18px; padding: 18px 22px; margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--green-soft); color: var(--green-dark); display: grid; place-items: center; font-size: 20px;">
+                ⏰
+              </div>
+              <div>
+                <strong style="font-size: 14px; display: block; color: var(--ink);">Programación Automática de Selección: <span id="schedule-status-badge" style="font-size: 12px; color: var(--green-dark); font-weight: 700;">Activa</span></strong>
+                <span style="font-size: 12px; color: var(--muted);" id="schedule-status-text">Se ejecutará automáticamente a las <b>20:00</b> para las plazas de <b>mañana</b> (Lunes a Viernes).</span>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted); text-align: right;" id="schedule-last-run-info">
+              Última ejecución: <i>Nunca</i>
+            </div>
+          </div>
+
+          <!-- Métricas del Algoritmo -->
+          <div class="stats-grid" style="margin-bottom: 24px;">
+            <article class="stat-card-clean">
+              <span class="stat-icon-clean">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </span>
+              <div>
+                <small>Horas Totales del Curso</small>
+                <strong id="stat-course-hours">2.000 h</strong>
+                <p>Configurable por el centro</p>
+              </div>
+            </article>
+
+            <article class="stat-card-clean">
+              <span class="stat-icon-clean">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+              </span>
+              <div>
+                <small>Alumnos Apuntados (EV)</small>
+                <strong id="stat-enrolled-ev">0</strong>
+                <p>Con vehículo registrado</p>
+              </div>
+            </article>
+
+            <article class="stat-card-clean">
+              <span class="stat-icon-clean">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/></svg>
+              </span>
+              <div>
+                <small>Cuota Estimada por Alumno</small>
+                <strong id="stat-quota-per-student">0 h</strong>
+                <p>Horas curso / Alumnos EV</p>
+              </div>
+            </article>
+          </div>
+
+          <!-- Tabla de Prioridad de Alumnos -->
+          <div class="section-heading" style="margin-bottom: 14px;">
+            <div>
+              <span class="eyebrow">Orden de Prioridad Actual</span>
+              <h4 style="margin: 2px 0 0; font-size: 16px;">Alumnos ordenados por menor carga acumulada</h4>
+            </div>
+          </div>
+          <div class="history-list" id="auto-dispatch-ranking-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando ranking de consumo...</div>
+          </div>
+        </section>
+
+        <!-- Panel 5: Horarios de clases -->
+        <section id="tab-schedules" class="admin-tab-pane">
+          <div class="schedule-import-card">
+            <div>
+              <span class="eyebrow">Gestión Académica Multi-Clase</span>
+              <h3 style="margin: 4px 0 4px; font-size: 16px;">Horarios Lectivos por Grupo / Clase</h3>
+              <p style="margin: 0; font-size: 12px; color: var(--muted);">Añade varios horarios con nombre propio (ej. <b>2º DAW</b>, <b>1º ASIR</b>) en formato <b>XML</b> o <b>JSON</b> y visualízalos en tabla semanal.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btn-clear-schedule" class="secondary-button" style="color: var(--danger); border-color: var(--line); background: var(--white);">
+                Vaciar todos
+              </button>
+              <button type="button" id="btn-tab-import-schedule" class="primary-button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Añadir horario (XML / JSON)
+              </button>
+            </div>
+          </div>
+
+          <div id="schedules-table-container">
+            <div class="history-list" style="padding: 30px; text-align: center; color: var(--muted);">Cargando horarios de clases...</div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Minimalista Crear / Editar Cargador -->
+  <div id="charger-modal" class="minimal-modal-backdrop" style="display: none;">
+    <div class="minimal-modal-box">
+      <div class="modal-header-clean">
+        <h3 id="charger-modal-title" style="margin: 0;">Añadir cargador</h3>
+        <button id="btn-close-charger-modal" class="icon-button" style="width: 32px; height: 32px;" type="button">&times;</button>
+      </div>
+
+      <form id="charger-form" class="modal-body-clean">
+        <input type="hidden" id="charger-id">
+        <div id="charger-modal-alert" class="alert-clean alert-danger"></div>
+
+        <div>
+          <label class="label-text" for="charger-name">Identificador / Nombre</label>
+          <input type="text" id="charger-name" class="input-field" placeholder="Ej: Plaza E-12 Norte" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="label-text" for="charger-power">Potencia (kW)</label>
+            <input type="number" step="0.1" id="charger-power" class="input-field" placeholder="7.4" required>
+          </div>
+          <div>
+            <label class="label-text" for="charger-status">Estado Operativo</label>
+            <select id="charger-status" class="input-field">
+              <option value="available">Disponible</option>
+              <option value="maintenance">Mantenimiento</option>
+              <option value="out_of_service">Fuera de servicio</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="label-text" for="charger-location">Ubicación detallada</label>
+          <input type="text" id="charger-location" class="input-field" placeholder="Aparcamiento Norte, Plaza 14">
+        </div>
+
+        <div class="modal-footer-clean">
+          <button type="button" id="btn-cancel-charger-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
+          <button type="submit" id="btn-save-charger" class="primary-button">Guardar punto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Importar Horarios (XML / JSON) -->
+  <div id="schedule-modal" class="minimal-modal-backdrop" style="display: none;">
+    <div class="minimal-modal-box" style="max-width: 580px;">
+      <div class="modal-header-clean">
+        <div>
+          <span class="eyebrow">Importación de datos</span>
+          <h3 style="margin: 2px 0 0;">Importar Horario de Clases (XML / JSON)</h3>
+        </div>
+        <button id="btn-close-schedule-modal" class="icon-button" style="width: 32px; height: 32px;" type="button">&times;</button>
+      </div>
+
+      <form id="schedule-import-form" class="modal-body-clean">
+        <div id="schedule-modal-alert" class="alert-clean alert-danger"></div>
+
+        <div>
+          <label class="label-text" for="schedule-name-input">Nombre del horario / grupo</label>
+          <input type="text" id="schedule-name-input" class="input-field" placeholder="Ej: 2º DAW Vespertino, 1º ASIR, 2º DAM..." required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="label-text" for="schedule-format">Formato de origen</label>
+            <select id="schedule-format" class="input-field">
+              <option value="xml">XML (&lt;horario&gt;&lt;dia&gt;&lt;clase/&gt;)</option>
+              <option value="json">JSON (Objeto / Array)</option>
+            </select>
+          </div>
+          <div>
+            <label class="label-text" for="schedule-mode">Si el horario ya existe</label>
+            <select id="schedule-mode" class="input-field">
+              <option value="replace">Sobrescribir ese horario</option>
+              <option value="append">Fusionar / Añadir sesiones</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="label-text">Seleccionar archivo (.xml o .json)</label>
+          <div id="schedule-dropzone" class="schedule-dropzone">
+            <input type="file" id="schedule-file-input" accept=".xml,.json,text/xml,application/xml,application/json" style="display: none;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--green-dark); margin-bottom: 6px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <div style="font-size: 13px; font-weight: 700; color: var(--ink);" id="schedule-file-label">Haz clic o arrastra un archivo XML o JSON aquí</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">Soporta la estructura &lt;horario&gt; con &lt;dia nombre="..."&gt; y &lt;clase inicio="..." fin="..." modulo="..." cfs="..."/&gt;</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="label-text" for="schedule-content" style="margin-bottom: 0;">Contenido del horario (editable / pegar directamente)</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="btn-load-sample-xml" style="border: 0; background: none; font-size: 11px; font-weight: 700; color: var(--green-dark); cursor: pointer;">Cargar ejemplo XML</button>
+              <span style="color: var(--line);">|</span>
+              <button type="button" id="btn-load-sample-json" style="border: 0; background: none; font-size: 11px; font-weight: 700; color: var(--green-dark); cursor: pointer;">Cargar ejemplo JSON</button>
+            </div>
+          </div>
+          <textarea id="schedule-content" class="input-field" rows="8" style="height: auto; padding: 12px; font-family: monospace; font-size: 11px; line-height: 1.45; resize: vertical;" placeholder="Pega aquí el contenido XML o JSON, o selecciona un archivo arriba..." required></textarea>
+        </div>
+
+        <div class="modal-footer-clean">
+          <button type="button" id="btn-cancel-schedule-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
+          <button type="submit" id="btn-submit-schedule" class="primary-button">Importar horario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Ajustes del Algoritmo -->
+  <div id="algorithm-settings-modal" class="minimal-modal-backdrop" style="display: none;">
+    <div class="minimal-modal-box" style="max-width: 480px;">
+      <div class="modal-header-clean">
+        <div>
+          <span class="eyebrow">Parámetros del Centro</span>
+          <h3 style="margin: 2px 0 0;">Configurar Algoritmo de Reparto</h3>
+        </div>
+        <button id="btn-close-algorithm-modal" class="icon-button" style="width: 34px; height: 34px;" type="button">&times;</button>
+      </div>
+
+      <form id="algorithm-settings-form" class="modal-body-clean">
+        <div>
+          <label class="label-text" for="input-course-total-hours">Horas Lectivas Totales del Curso</label>
+          <input type="number" id="input-course-total-hours" class="input-field" placeholder="2000" min="1" required>
+          <small style="color: var(--muted); font-size: 11px;">Numerador de la fórmula: Horas Totales / Alumnos con Vehículo.</small>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="label-text" for="input-charging-start">Hora Inicio Campus</label>
+            <input type="time" id="input-charging-start" class="input-field" value="08:00" required>
+          </div>
+          <div>
+            <label class="label-text" for="input-charging-end">Hora Fin Campus</label>
+            <input type="time" id="input-charging-end" class="input-field" value="15:00" required>
+          </div>
+        </div>
+
+        <div>
+          <label class="label-text" for="input-slot-duration">Horas Asignadas por Reserva (Slot)</label>
+          <input type="number" step="0.5" id="input-slot-duration" class="input-field" value="2" min="1" max="4" required>
+        </div>
+
+        <div class="modal-footer-clean">
+          <button type="button" id="btn-cancel-algorithm-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
+          <button type="submit" class="primary-button">Guardar Configuración</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Programar Selección Automática de Horarios -->
+  <div id="scheduler-settings-modal" class="minimal-modal-backdrop" style="display: none;">
+    <div class="minimal-modal-box" style="max-width: 480px;">
+      <div class="modal-header-clean">
+        <div>
+          <span class="eyebrow">Automatización de Turnos</span>
+          <h3 style="margin: 2px 0 0;">Programar Selección Automática</h3>
+        </div>
+        <button id="btn-close-scheduler-modal" class="icon-button" style="width: 34px; height: 34px;" type="button">&times;</button>
+      </div>
+
+      <form id="scheduler-settings-form" class="modal-body-clean">
+        <div>
+          <label class="label-text" for="input-scheduler-enabled">Estado de la Automatización</label>
+          <select id="input-scheduler-enabled" class="input-field">
+            <option value="true">Activa (Ejecutar automáticamente)</option>
+            <option value="false">Pausada (Solo ejecución manual)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="label-text" for="input-scheduler-frequency">Frecuencia del Reparto</label>
+          <select id="input-scheduler-frequency" class="input-field">
+            <option value="daily">Diaria (Días lectivos seleccionados)</option>
+            <option value="weekly">Semanal (Un día específico a la semana)</option>
+            <option value="monthly">Mensual (Un día específico del mes)</option>
+          </select>
+        </div>
+
+        <!-- Opciones condicionales según frecuencia -->
+        <div id="freq-daily-opts">
+          <label class="label-text">Días Lectivos con Ejecución</label>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;">
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="1" checked> Lun
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="2" checked> Mar
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="3" checked> Mié
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="4" checked> Jue
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="5" checked> Vie
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="6"> Sáb
+            </label>
+            <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" name="sched_days" value="0"> Dom
+            </label>
+          </div>
+        </div>
+
+        <div id="freq-weekly-opts" style="display: none;">
+          <label class="label-text" for="input-scheduler-day-of-week">Día de la Semana para Reparto</label>
+          <select id="input-scheduler-day-of-week" class="input-field">
+            <option value="1">Cada Lunes</option>
+            <option value="2">Cada Martes</option>
+            <option value="3">Cada Miércoles</option>
+            <option value="4">Cada Jueves</option>
+            <option value="5">Cada Viernes</option>
+            <option value="6">Cada Sábado</option>
+            <option value="7">Cada Domingo</option>
+          </select>
+        </div>
+
+        <div id="freq-monthly-opts" style="display: none;">
+          <label class="label-text" for="input-scheduler-day-of-month">Día del Mes para Reparto</label>
+          <select id="input-scheduler-day-of-month" class="input-field">
+            <!-- 1 al 28 para asegurar compatibilidad con todos los meses -->
+            <option value="1">Día 1 de cada mes</option>
+            <option value="5">Día 5 de cada mes</option>
+            <option value="10">Día 10 de cada mes</option>
+            <option value="15">Día 15 de cada mes</option>
+            <option value="20">Día 20 de cada mes</option>
+            <option value="25">Día 25 de cada mes</option>
+            <option value="28">Día 28 de cada mes</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label class="label-text" for="input-scheduler-time">Hora de Ejecución</label>
+            <input type="time" id="input-scheduler-time" class="input-field" value="20:00" required>
+            <small style="color: var(--muted); font-size: 11px;">Hora en la que se calculan las reservas.</small>
+          </div>
+          <div>
+            <label class="label-text" for="input-scheduler-scope">Jornada Objetivo</label>
+            <select id="input-scheduler-scope" class="input-field">
+              <option value="tomorrow">Día Siguiente (Mañana)</option>
+              <option value="today">Mismo Día (Hoy)</option>
+            </select>
+            <small style="color: var(--muted); font-size: 11px;">Fecha de las plazas a asignar.</small>
+          </div>
+        </div>
+
+        <div class="modal-footer-clean">
+          <button type="button" id="btn-cancel-scheduler-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
+          <button type="submit" class="primary-button">Guardar Programación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module" src="js/views/admin-dashboard.js"></script>
+</body>
+</html>

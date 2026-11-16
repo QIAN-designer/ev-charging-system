@@ -1,0 +1,4 @@
+5.Hacer un menú de gestión de incidencias.
+6.Que el admin en el dashboard pueda anular reservas. (Completado)
+7.Añadir prisma ORM.
+8.La propia aplicación es la que hace las reservas dando prioridad a los que menos horas de carga tengan (Horas curso / Alumnos con vehículo). (Completado)
