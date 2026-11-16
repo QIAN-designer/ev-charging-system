@@ -73,9 +73,26 @@ const cancelBooking = async (req, res) => {
   }
 };
 
+const getWeeklySchedule = async (req, res) => {
+  try {
+    const { week_start } = req.query;
+    const schedule = await bookingService.getWeeklySchedule(week_start);
+    return res.status(200).json({
+      success: true,
+      data: schedule
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Error al obtener el horario semanal de recargas'
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
-  cancelBooking
+  cancelBooking,
+  getWeeklySchedule
 };
 

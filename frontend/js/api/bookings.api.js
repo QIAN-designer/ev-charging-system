@@ -30,6 +30,13 @@ export const bookingsApi = {
     return apiRequest(`/bookings/${bookingId}/cancel`, {
       method: 'PATCH'
     });
+  },
+
+  getWeeklySchedule: (weekStart = null) => {
+    const query = weekStart ? `?week_start=${encodeURIComponent(weekStart)}` : '';
+    return apiRequest(`/bookings/weekly-schedule${query}`, {
+      method: 'GET'
+    });
   }
 };
 

@@ -6,6 +6,7 @@ import { formatDateTime } from '../utils/date.js';
 import { initTheme } from '../utils/theme.js';
 import { setupUserMenu } from '../utils/userMenu.js';
 import { showError, showConfirm, showSuccess, promptPasswordReset } from '../utils/alerts.js';
+import { renderWeeklyGrid } from '../utils/weeklyScheduleGrid.js';
 
 if (requireAuth({ requireAdmin: true })) {
   initTheme();
@@ -46,6 +47,10 @@ if (requireAuth({ requireAdmin: true })) {
       tab.classList.add('active');
       const targetPane = document.getElementById(tab.getAttribute('data-tab'));
       if (targetPane) targetPane.classList.add('active');
+
+      if (tab.getAttribute('data-tab') === 'tab-weekly-schedule') {
+        loadAdminWeeklySchedule(adminCurrentWeekStart);
+      }
     });
   });
 
@@ -1143,14 +1148,14 @@ if (requireAuth({ requireAdmin: true })) {
   if (btnRunAutoDispatch) {
     btnRunAutoDispatch.addEventListener('click', async () => {
       const confirmed = await showConfirm(
-        'El sistema repartirá las plazas libres dando prioridad a los alumnos que menos horas acumuladas lleven. ¿Deseas ejecutarlo ahora?',
-        'Ejecutar Reparto Inteligente',
-        '⚡ Asignar reservas'
+        'El sistema planificará las plazas de carga para toda la semana lectiva (Lunes a Viernes), priorizando a los alumnos que menos horas acumuladas lleven. ¿Deseas ejecutarlo ahora?',
+        'Planificación Semanal Automática',
+        '⚡ Planificar Semana Completa'
       );
       if (!confirmed) return;
 
       btnRunAutoDispatch.disabled = true;
-      btnRunAutoDispatch.textContent = 'Calculando...';
+      btnRunAutoDispatch.textContent = 'Calculando semana...';
 
       try {
         const res = await adminApi.runAutoDispatch();
@@ -1159,6 +1164,9 @@ if (requireAuth({ requireAdmin: true })) {
           await loadAutoDispatchStats();
           await loadAllBookings();
           await loadStats();
+          if (adminCurrentWeekStart) {
+            await loadAdminWeeklySchedule(adminCurrentWeekStart);
+          }
         } else {
           showError(res.message, 'Aviso de Asignación');
         }
@@ -1168,6 +1176,109 @@ if (requireAuth({ requireAdmin: true })) {
         btnRunAutoDispatch.disabled = false;
         btnRunAutoDispatch.textContent = '⚡ Ejecutar Asignación Ahora';
       }
+    });
+  }
+
+  // ==========================================
+  // Cuadrante Semanal de Recargas
+  // ==========================================
+  let adminCurrentWeekStart = null;
+
+  function toIsoDate(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function getMonday(d = new Date()) {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    date.setDate(diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  function updateAdminWeekLabel(startDateStr, endDateStr) {
+    const labelEl = document.getElementById('admin-week-range-label');
+    if (!labelEl) return;
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const options = { day: 'numeric', month: 'short' };
+    const sStr = start.toLocaleDateString('es-ES', options);
+    const eStr = end.toLocaleDateString('es-ES', options);
+    const year = end.getFullYear();
+    labelEl.textContent = `${sStr} - ${eStr}, ${year}`;
+  }
+
+  function updateAdminHeadersWithDates(daysDates) {
+    const names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    daysDates.forEach((d, idx) => {
+      const th = document.getElementById(`th-admin-day-${idx + 1}`);
+      if (th) {
+        const dayNum = String(d.getDate()).padStart(2, '0');
+        const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+        th.innerHTML = `${names[idx]} <span style="font-size: 11px; font-weight: normal; color: var(--muted); display: block; margin-top: 2px;">${dayNum}/${monthNum}</span>`;
+      }
+    });
+  }
+
+  async function loadAdminWeeklySchedule(weekStartStr) {
+    const tbody = document.getElementById('admin-weekly-grid-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="padding: 30px; text-align: center; color: var(--muted);">
+          Cargando cuadrante semanal...
+        </td>
+      </tr>
+    `;
+
+    try {
+      const res = await bookingsApi.getWeeklySchedule(weekStartStr);
+      if (!res || !res.success) {
+        throw new Error(res?.message || 'Error al obtener horario semanal.');
+      }
+
+      const { week_start, week_end, bookings } = res.data;
+      adminCurrentWeekStart = week_start;
+      updateAdminWeekLabel(week_start, week_end);
+
+      renderWeeklyGrid(tbody, bookings, week_start, user.id, updateAdminHeadersWithDates);
+    } catch (err) {
+      console.error('Error cargando horario semanal en admin:', err);
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 30px; text-align: center; color: var(--danger);">
+            ${err.message || 'Error al cargar horario semanal.'}
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  adminCurrentWeekStart = toIsoDate(getMonday());
+
+  const btnAdminPrev = document.getElementById('btn-admin-prev-week');
+  const btnAdminNext = document.getElementById('btn-admin-next-week');
+
+  if (btnAdminPrev) {
+    btnAdminPrev.addEventListener('click', () => {
+      const cur = new Date(adminCurrentWeekStart);
+      cur.setDate(cur.getDate() - 7);
+      adminCurrentWeekStart = toIsoDate(cur);
+      loadAdminWeeklySchedule(adminCurrentWeekStart);
+    });
+  }
+
+  if (btnAdminNext) {
+    btnAdminNext.addEventListener('click', () => {
+      const cur = new Date(adminCurrentWeekStart);
+      cur.setDate(cur.getDate() + 7);
+      adminCurrentWeekStart = toIsoDate(cur);
+      loadAdminWeeklySchedule(adminCurrentWeekStart);
     });
   }
 

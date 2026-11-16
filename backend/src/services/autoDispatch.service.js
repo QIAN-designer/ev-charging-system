@@ -12,15 +12,15 @@ class AutoDispatchService {
     }
     return {
       course_total_hours: parseFloat(settings.course_total_hours || '2000'),
-      charging_window_start: settings.charging_window_start || '08:00',
-      charging_window_end: settings.charging_window_end || '15:00',
-      slot_duration_hours: parseFloat(settings.slot_duration_hours || '2'),
+      charging_window_start: settings.charging_window_start || '15:00',
+      charging_window_end: settings.charging_window_end || '21:00',
+      slot_duration_hours: parseFloat(settings.slot_duration_hours || '3'),
       auto_dispatch_enabled: settings.auto_dispatch_enabled !== 'false',
-      auto_dispatch_frequency: settings.auto_dispatch_frequency || 'daily', // daily | weekly | monthly
-      auto_dispatch_time: settings.auto_dispatch_time || '20:00',
-      auto_dispatch_day_of_week: parseInt(settings.auto_dispatch_day_of_week || '1', 10), // 1=Lunes..7=Domingo
+      auto_dispatch_frequency: settings.auto_dispatch_frequency || 'weekly', // daily | weekly | monthly
+      auto_dispatch_time: settings.auto_dispatch_time || '00:00',
+      auto_dispatch_day_of_week: parseInt(settings.auto_dispatch_day_of_week || '7', 10), // 1=Lunes..7=Domingo
       auto_dispatch_day_of_month: parseInt(settings.auto_dispatch_day_of_month || '1', 10), // 1..31
-      auto_dispatch_target_scope: settings.auto_dispatch_target_scope || 'tomorrow',
+      auto_dispatch_target_scope: settings.auto_dispatch_target_scope || 'week',
       auto_dispatch_days: settings.auto_dispatch_days || '1,2,3,4,5',
       auto_dispatch_last_run: settings.auto_dispatch_last_run || null
     };
@@ -62,6 +62,7 @@ class AutoDispatchService {
         u.vehicle_plate, 
         u.vehicle_brand, 
         u.vehicle_model,
+        u.class_name,
         COALESCE(
           SUM(
             CASE 
@@ -105,94 +106,43 @@ class AutoDispatchService {
   }
 
   /**
-   * Genera y asigna automáticamente reservas para una fecha dada (por defecto hoy o mañana).
-   * Algoritmo:
-   * 1. Toma los alumnos ordenados por menos horas acumuladas.
-   * 2. Obtiene los cargadores disponibles ('available').
-   * 3. Itera las franjas horarias del día lectivo (ej: 08:00 a 15:00 en slots de 2h).
-   * 4. Asigna plaza en cargador libre al alumno con menor carga que aún no tenga reserva ese día.
+   * Asigna reservas para una fecha individual (targetDate).
+   * Horario exclusivo de tarde (15:10 a 21:00) en base a clases de 55 minutos:
+   * - Tramo 1 (Antes del patio): 15:10 a 17:55 (3 sesiones de 55 min = 2h 45m).
+   * - Patio / Descanso: 17:55 a 18:15 (20 min sin reservas para rotación/cambio de vehículos).
+   * - Tramo 2 (Después del patio): 18:15 a 21:00 (3 sesiones de 55 min = 2h 45m).
    */
-  async generateAutoBookings(targetDateStr = null) {
-    // Sincronizar expirados antes
-    await db.query(`UPDATE bookings SET status = 'completed' WHERE status = 'active' AND end_time <= NOW()`);
-
-    const stats = await this.getAlgorithmStats();
-    const { settings, priority_ranking } = stats;
-
-    if (priority_ranking.length === 0) {
-      return {
-        success: false,
-        message: 'No hay alumnos con vehículo registrado para asignar reservas.',
-        createdBookings: []
-      };
-    }
-
-    // Determinar la fecha objetivo (si no se especifica, hoy si son antes de las 13:00, o mañana)
-    let target = targetDateStr ? new Date(targetDateStr) : new Date();
-    if (isNaN(target.getTime())) target = new Date();
-
-    // Obtener cargadores disponibles
-    const chargersRes = await db.query(
-      "SELECT id, name, power_kw, location_description FROM chargers WHERE status = 'available' ORDER BY id ASC"
-    );
-    const chargers = chargersRes.rows;
-
-    if (chargers.length === 0) {
-      return {
-        success: false,
-        message: 'No hay cargadores operativos con estado disponible.',
-        createdBookings: []
-      };
-    }
-
-    // Configuración de franjas horarias
-    const [startH, startM] = settings.charging_window_start.split(':').map(Number);
-    const [endH, endM] = settings.charging_window_end.split(':').map(Number);
-
-    // Regla de intervalos:
-    // Todos los días: 3h por intervalo.
-    // Miércoles: primer intervalo de 2h, y los siguientes de 3h.
-    const isWednesday = target.getDay() === 3;
-
-    // Generar las franjas horarias del día objetivo
-    const timeSlots = [];
-    let currentSlotStart = new Date(target);
-    currentSlotStart.setHours(startH, startM, 0, 0);
-
-    const dayEndLimit = new Date(target);
-    dayEndLimit.setHours(endH, endM, 0, 0);
+  async generateBookingsForSingleDay(target, settings, chargers, accumulatedHoursMap) {
+    const definedSlots = [
+      { startH: 15, startM: 10, endH: 17, endM: 55, durationHours: 2.75 },
+      { startH: 18, startM: 15, endH: 21, endM: 0, durationHours: 2.75 }
+    ];
 
     const now = new Date();
-    let slotIndex = 0;
+    const timeSlots = [];
 
-    while (currentSlotStart < dayEndLimit) {
-      // Si es miércoles y es el primer slot del día -> 2 horas; de lo contrario -> 3 horas
-      const currentSlotDurationHours = (isWednesday && slotIndex === 0) ? 2 : 3;
+    for (const slotDef of definedSlots) {
+      const slotStart = new Date(target);
+      slotStart.setHours(slotDef.startH, slotDef.startM, 0, 0);
 
-      const slotEnd = new Date(currentSlotStart.getTime() + currentSlotDurationHours * 3600 * 1000);
-      if (slotEnd > dayEndLimit) break;
+      const slotEnd = new Date(target);
+      slotEnd.setHours(slotDef.endH, slotDef.endM, 0, 0);
 
-      // Solo franjas futuras
-      if (currentSlotStart > now) {
+      const isToday = target.toDateString() === now.toDateString();
+      if (!isToday || slotStart > now) {
         timeSlots.push({
-          start: new Date(currentSlotStart),
-          end: new Date(slotEnd),
-          durationHours: currentSlotDurationHours
+          start: slotStart,
+          end: slotEnd,
+          durationHours: slotDef.durationHours
         });
       }
-      currentSlotStart = new Date(slotEnd);
-      slotIndex++;
     }
 
     if (timeSlots.length === 0) {
-      return {
-        success: false,
-        message: 'No quedan franjas horarias disponibles para la fecha seleccionada.',
-        createdBookings: []
-      };
+      return [];
     }
 
-    // Consultar reservas ya existentes ese día para no duplicar ni solapar
+    // Consultar reservas ya existentes ese día
     const dayStartIso = new Date(target);
     dayStartIso.setHours(0, 0, 0, 0);
     const dayEndIso = new Date(target);
@@ -210,19 +160,31 @@ class AutoDispatchService {
     // Alumnos que ya tienen reserva activa ese día
     const studentsWithBookingToday = new Set(existing.map(b => b.user_id));
 
-    const createdBookings = [];
+    // Obtener lista fresca de alumnos con vehículo
+    const studentsRes = await db.query(`
+      SELECT id, name, email, vehicle_plate, vehicle_brand, vehicle_model, class_name
+      FROM users
+      WHERE role = 'alumno'
+        AND (vehicle_plate IS NOT NULL AND TRIM(vehicle_plate) <> '')
+    `);
 
-    // Priorizar alumnos con menos horas
-    for (const student of priority_ranking) {
+    // Ordenar por menor horas acumuladas según el mapa dinámico
+    const rankedStudents = studentsRes.rows.sort((a, b) => {
+      const hA = accumulatedHoursMap.get(a.id) ?? 0;
+      const hB = accumulatedHoursMap.get(b.id) ?? 0;
+      return hA - hB;
+    });
+
+    const dayCreatedBookings = [];
+
+    for (const student of rankedStudents) {
       if (studentsWithBookingToday.has(student.id)) {
-        continue; // Un slot por alumno al día
+        continue; // Máximo 1 turno por alumno al día
       }
 
-      // Buscar el primer cargador y slot disponible
       let assigned = false;
       for (const slot of timeSlots) {
         for (const charger of chargers) {
-          // Verificar si el cargador está ocupado en esta franja
           const isOccupied = existing.some(b => 
             b.charger_id === charger.id &&
             new Date(b.start_time) < slot.end &&
@@ -230,19 +192,29 @@ class AutoDispatchService {
           );
 
           if (!isOccupied) {
-            // Asignar reserva
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatLocal = (d) =>
+              `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+            const startStr = formatLocal(slot.start);
+            const endStr = formatLocal(slot.end);
+
             const insertRes = await db.query(
               `INSERT INTO bookings (user_id, charger_id, start_time, end_time, status)
                VALUES ($1, $2, $3, $4, 'active')
                RETURNING id, user_id, charger_id, start_time, end_time, status`,
-              [student.id, charger.id, slot.start.toISOString(), slot.end.toISOString()]
+              [student.id, charger.id, startStr, endStr]
             );
 
             const newBooking = insertRes.rows[0];
             existing.push(newBooking);
             studentsWithBookingToday.add(student.id);
 
-            createdBookings.push({
+            // Actualizar horas acumuladas dinámicamente
+            const prevHours = accumulatedHoursMap.get(student.id) ?? 0;
+            accumulatedHoursMap.set(student.id, prevHours + slot.durationHours);
+
+            dayCreatedBookings.push({
               id: newBooking.id,
               user_id: student.id,
               user_name: student.name,
@@ -250,7 +222,7 @@ class AutoDispatchService {
               charger_name: charger.name,
               start_time: newBooking.start_time,
               end_time: newBooking.end_time,
-              accumulated_hours: student.total_hours_charged
+              accumulated_hours: accumulatedHoursMap.get(student.id)
             });
 
             assigned = true;
@@ -261,6 +233,81 @@ class AutoDispatchService {
       }
     }
 
+    return dayCreatedBookings;
+  }
+
+  /**
+   * Genera y asigna automáticamente reservas para TODA LA SEMANA lectiva (Lunes a Viernes).
+   * Si se ejecuta a mitad de semana, cubre los días restantes de la semana en curso (o la semana completa).
+   * @param {String|null} referenceDateStr - Fecha de referencia (YYYY-MM-DD)
+   */
+  async generateWeeklyAutoBookings(referenceDateStr = null) {
+    // Sincronizar reservas expiradas
+    await db.query(`UPDATE bookings SET status = 'completed' WHERE status = 'active' AND end_time <= NOW()`);
+
+    const stats = await this.getAlgorithmStats();
+    const { settings, priority_ranking } = stats;
+
+    if (priority_ranking.length === 0) {
+      return {
+        success: false,
+        message: 'No hay alumnos con vehículo registrado para asignar reservas.',
+        createdBookings: []
+      };
+    }
+
+    // Obtener cargadores disponibles
+    const chargersRes = await db.query(
+      "SELECT id, name, power_kw, location_description FROM chargers WHERE status = 'available' ORDER BY id ASC"
+    );
+    const chargers = chargersRes.rows;
+
+    if (chargers.length === 0) {
+      return {
+        success: false,
+        message: 'No hay cargadores operativos con estado disponible.',
+        createdBookings: []
+      };
+    }
+
+    // Determinar la fecha de referencia
+    let refDate = referenceDateStr ? new Date(referenceDateStr) : new Date();
+    if (isNaN(refDate.getTime())) refDate = new Date();
+
+    // Calcular el Lunes de la semana lectiva
+    const monday = new Date(refDate);
+    const dayOfWeek = monday.getDay(); // 0 = Domingo, 1 = Lunes, ...
+    const diffToMonday = monday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    monday.setDate(diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    // Días lectivos de la semana (Lunes a Viernes)
+    const schoolDays = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      schoolDays.push(d);
+    }
+
+    // Mapa de horas acumuladas de cada alumno para balancear dinámicamente día a día
+    const accumulatedHoursMap = new Map();
+    priority_ranking.forEach(st => {
+      accumulatedHoursMap.set(st.id, st.total_hours_charged);
+    });
+
+    const allWeeklyBookings = [];
+
+    // Iterar cada día lectivo de la semana
+    for (const dayDate of schoolDays) {
+      const dayBookings = await this.generateBookingsForSingleDay(
+        dayDate,
+        settings,
+        chargers,
+        accumulatedHoursMap
+      );
+      allWeeklyBookings.push(...dayBookings);
+    }
+
     // Registrar timestamp de última ejecución
     await db.query(
       `INSERT INTO system_settings (key, value, updated_at)
@@ -269,14 +316,24 @@ class AutoDispatchService {
       [new Date().toISOString()]
     );
 
+    const startStr = schoolDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    const endStr = schoolDays[4].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+
     return {
       success: true,
-      message: createdBookings.length > 0 
-        ? `Se han generado ${createdBookings.length} reserva(s) automáticas con éxito según prioridad de carga.`
-        : 'Todos los alumnos con prioridad ya tienen asignación o los cargadores están al completo para esta jornada.',
-      createdBookings,
-      targetDate: target.toISOString().split('T')[0]
+      message: allWeeklyBookings.length > 0 
+        ? `Se han planificado ${allWeeklyBookings.length} reservas automáticas para toda la semana lectiva (${startStr} - ${endStr}).`
+        : `No se pudieron generar nuevas plazas: los alumnos prioritarios ya tienen reservas o las franjas ya están ocupadas para esta semana.`,
+      createdBookings: allWeeklyBookings,
+      weekRange: `${startStr} - ${endStr}`
     };
+  }
+
+  /**
+   * Método compatible con llamadas anteriores, redirigiendo a planificación semanal
+   */
+  async generateAutoBookings(targetDateStr = null) {
+    return this.generateWeeklyAutoBookings(targetDateStr);
   }
 
   /**
@@ -287,11 +344,9 @@ class AutoDispatchService {
     if (!settings.auto_dispatch_enabled) return false;
 
     const now = new Date();
-    const frequency = settings.auto_dispatch_frequency || 'daily';
+    const frequency = settings.auto_dispatch_frequency || 'weekly';
 
-    // 1. Comprobación según frecuencia (diaria, semanal, mensual)
     if (frequency === 'daily') {
-      // Días lectivos activos (1=Lunes..5=Viernes)
       const currentDayOfWeek = now.getDay();
       const activeDays = (settings.auto_dispatch_days || '1,2,3,4,5')
         .split(',')
@@ -302,25 +357,21 @@ class AutoDispatchService {
         return false;
       }
     } else if (frequency === 'weekly') {
-      // Día específico de la semana (1=Lunes..7=Domingo; getDay() 0=Dom, 1=Lun..6=Sab)
       const currentIsoDay = now.getDay() === 0 ? 7 : now.getDay();
       if (currentIsoDay !== settings.auto_dispatch_day_of_week) {
         return false;
       }
     } else if (frequency === 'monthly') {
-      // Día específico del mes (1..31)
       const currentDayOfMonth = now.getDate();
       if (currentDayOfMonth !== settings.auto_dispatch_day_of_month) {
         return false;
       }
     }
 
-    // 2. Comprobar la hora programada (ej: "20:00")
-    const [schedH, schedM] = (settings.auto_dispatch_time || '20:00').split(':').map(Number);
+    const [schedH, schedM] = (settings.auto_dispatch_time || '00:00').split(':').map(Number);
     const nowH = now.getHours();
     const nowM = now.getMinutes();
 
-    // 3. Comprobar si ya se ejecutó en este periodo
     if (settings.auto_dispatch_last_run) {
       const lastRun = new Date(settings.auto_dispatch_last_run);
       if (frequency === 'daily') {
@@ -332,29 +383,19 @@ class AutoDispatchService {
           return false;
         }
       } else if (frequency === 'weekly') {
-        // Misma semana (diferencia < 6 días)
         const diffDays = Math.floor((now.getTime() - lastRun.getTime()) / (1000 * 3600 * 24));
         if (diffDays < 6) return false;
       } else if (frequency === 'monthly') {
-        // Mismo mes y año
         if (lastRun.getFullYear() === now.getFullYear() && lastRun.getMonth() === now.getMonth()) {
           return false;
         }
       }
     }
 
-    // 4. Si la hora actual es igual o posterior a la programada
     if (nowH > schedH || (nowH === schedH && nowM >= schedM)) {
-      console.log(`[AutoDispatch] Ejecutando reparto programado (${frequency}) a las ${schedH.toString().padStart(2, '0')}:${schedM.toString().padStart(2, '0')}...`);
-      
-      let targetDate = new Date();
-      if (settings.auto_dispatch_target_scope === 'tomorrow') {
-        targetDate.setDate(targetDate.getDate() + 1);
-      }
-      
-      const targetStr = targetDate.toISOString().split('T')[0];
-      const result = await this.generateAutoBookings(targetStr);
-      console.log(`[AutoDispatch] Reparto (${frequency}) completado: ${result.message}`);
+      console.log(`[AutoDispatch] Ejecutando reparto semanal programado (${frequency})...`);
+      const result = await this.generateWeeklyAutoBookings();
+      console.log(`[AutoDispatch] Reparto semanal completado: ${result.message}`);
       return true;
     }
 

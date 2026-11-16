@@ -170,7 +170,7 @@ class BookingService {
     await this.syncExpiredBookings();
     let query = `
       SELECT b.id, b.start_time, b.end_time, b.status, b.created_at,
-             u.id as user_id, u.name as user_name, u.email as user_email, u.role as user_role, u.vehicle_plate,
+             u.id as user_id, u.name as user_name, u.email as user_email, u.role as user_role, u.vehicle_plate, u.class_name,
              c.id as charger_id, c.name as charger_name, c.power_kw, c.location_description
       FROM bookings b
       JOIN users u ON b.user_id = u.id
@@ -197,6 +197,48 @@ class BookingService {
 
     const res = await db.query(query, params);
     return res.rows;
+  }
+
+  /**
+   * Obtiene la cuadrícula del horario semanal de recargas (Lunes a Viernes o toda la semana)
+   * con información del alumno/profesor, su clase, cargador asignado y estado.
+   */
+  async getWeeklySchedule(weekStartStr = null) {
+    await this.syncExpiredBookings();
+
+    // Determinar el Lunes de la semana seleccionada (o de la semana actual)
+    let refDate = weekStartStr ? new Date(weekStartStr) : new Date();
+    if (isNaN(refDate.getTime())) refDate = new Date();
+
+    // Encontrar el lunes de esa semana
+    const day = refDate.getDay(); // 0=Dom, 1=Lun..6=Sab
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(refDate);
+    monday.setDate(refDate.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const res = await db.query(
+      `SELECT b.id, b.start_time, b.end_time, b.status,
+              u.id as user_id, u.name as user_name, u.email as user_email, u.role as user_role, u.class_name, u.vehicle_plate,
+              c.id as charger_id, c.name as charger_name, c.power_kw, c.location_description
+       FROM bookings b
+       JOIN users u ON b.user_id = u.id
+       JOIN chargers c ON b.charger_id = c.id
+       WHERE b.status IN ('active', 'completed')
+         AND b.start_time >= $1 AND b.start_time <= $2
+       ORDER BY b.start_time ASC, c.id ASC`,
+      [monday.toISOString(), sunday.toISOString()]
+    );
+
+    return {
+      week_start: monday.toISOString().split('T')[0],
+      week_end: sunday.toISOString().split('T')[0],
+      bookings: res.rows
+    };
   }
 }
 
