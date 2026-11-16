@@ -14,10 +14,35 @@ class BookingService {
   }
 
   /**
+   * Obtiene la duración máxima en horas para una reserva según las reglas del centro:
+   * - Todos los usuarios (alumno/profesor): 3 horas por intervalo.
+   * - Excepción Miércoles: El primer intervalo del día (a partir de las 08:00) es de 2 horas.
+   */
+  getMaxAllowedDuration(startTime, userRole) {
+    if (userRole === 'admin') return 12; // Admins sin restricción corta
+
+    const start = new Date(startTime);
+    const dayOfWeek = start.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
+
+    // Si es Miércoles (dayOfWeek === 3)
+    if (dayOfWeek === 3) {
+      // El primer intervalo del día (antes de las 10:30 o las primeras 2h de campus) tiene un límite de 2h
+      const startH = start.getHours();
+      const startM = start.getMinutes();
+      const totalMinutesFromMidnight = startH * 60 + startM;
+
+      // Si empieza en la primera franja lectiva (ej: entre las 08:00 y las 09:00)
+      if (totalMinutesFromMidnight <= 9 * 60) {
+        return 2;
+      }
+    }
+
+    return 3;
+  }
+
+  /**
    * Crear reserva con reglas de negocio:
-   * - Alumno: máx 2 horas por sesión
-   * - Profesor: máx 4 horas por sesión
-   * - Admin: sin límite estricto
+   * - Intervalos de carga de 3h para todos (excepto miércoles cuyo primer intervalo es de 2h)
    * - Validación de solapamiento de horarios en el cargador
    */
   async createBooking({ userId, userRole, chargerId, startTime, endTime }) {
@@ -43,16 +68,14 @@ class BookingService {
     }
 
     const durationHours = getDurationInHours(start, end);
+    const maxAllowed = this.getMaxAllowedDuration(start, userRole);
 
-    // Límites de tiempo según rol del instituto
-    if (userRole === 'alumno' && durationHours > 2) {
-      const error = new Error('Los alumnos tienen un límite máximo de reserva de 2 horas continuas');
-      error.status = 400;
-      throw error;
-    }
-
-    if (userRole === 'profesor' && durationHours > 4) {
-      const error = new Error('Los profesores tienen un límite máximo de reserva de 4 horas continuas');
+    if (durationHours > maxAllowed) {
+      const error = new Error(
+        start.getDay() === 3 && maxAllowed === 2
+          ? 'Los miércoles el primer intervalo de carga está limitado a 2 horas.'
+          : `El tiempo máximo de reserva por intervalo es de ${maxAllowed} horas.`
+      );
       error.status = 400;
       throw error;
     }

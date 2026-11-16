@@ -138,8 +138,11 @@
         </div>
 
         <div class="field-group">
-          <label class="label-text" for="reg-email">Correo Institucional</label>
-          <input type="email" id="reg-email" class="input-field" placeholder="carlos@instituto.es" required>
+          <label class="label-text" for="reg-email">Correo Institucional GVA</label>
+          <input type="email" id="reg-email" class="input-field" placeholder="ejemplo@alu.edu.gva.es o @edu.gva.es" required>
+          <div id="email-role-hint" style="font-size: 11px; color: var(--muted); margin-top: 2px;">
+            * @alu.edu.gva.es (Alumno) | @edu.gva.es (Profesor)
+          </div>
         </div>
 
         <div class="field-group">
@@ -147,16 +150,14 @@
           <input type="password" id="reg-password" class="input-field" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
         </div>
 
-        <div class="field-group">
-          <label class="label-text" for="reg-role">Rol en el Centro</label>
-          <select id="reg-role" class="input-field" required>
-            <option value="alumno">Alumno (límite 2 horas)</option>
-            <option value="profesor">Profesor (límite 4 horas)</option>
-          </select>
+        <!-- Indicador de rol detectado automáticamente -->
+        <div class="field-group" id="group-detected-role" style="padding: 10px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); font-size: 12px;">
+          <span style="color: var(--muted);">Rol detectado:</span>
+          <strong id="detected-role-label" style="color: var(--ink); margin-left: 6px;">Introduce tu correo GVA</strong>
         </div>
 
         <div class="field-group" id="group-reg-class">
-          <label class="label-text" for="reg-class">Clase / Grupo Matriculado</label>
+          <label class="label-text" for="reg-class">Clase / Grupo Matriculado (Alumnos)</label>
           <select id="reg-class" class="input-field">
             <option value="">Cargando clases disponibles...</option>
           </select>

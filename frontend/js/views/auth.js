@@ -12,9 +12,38 @@ if (requireGuest()) {
   const formLogin = document.getElementById('login-form');
   const formRegister = document.getElementById('register-form');
   const alertBox = document.getElementById('auth-alert');
-  const selectRole = document.getElementById('reg-role');
   const groupClass = document.getElementById('group-reg-class');
   const selectClass = document.getElementById('reg-class');
+  const regEmailInput = document.getElementById('reg-email');
+  const detectedRoleLabel = document.getElementById('detected-role-label');
+
+  // Detección automática en tiempo real del rol según el dominio institucional
+  function detectRoleFromEmail(email) {
+    const val = (email || '').trim().toLowerCase();
+    if (val.endsWith('@alu.edu.gva.es')) {
+      return { role: 'alumno', label: '🎓 Alumno (@alu.edu.gva.es)', valid: true };
+    }
+    if (val.endsWith('@edu.gva.es')) {
+      return { role: 'profesor', label: '👨‍🏫 Profesor (@edu.gva.es)', valid: true };
+    }
+    if (!val) {
+      return { role: null, label: 'Introduce tu correo GVA', valid: false };
+    }
+    return { role: null, label: '⚠️ Correo no válido (debe ser @alu.edu.gva.es o @edu.gva.es)', valid: false };
+  }
+
+  if (regEmailInput && detectedRoleLabel) {
+    regEmailInput.addEventListener('input', () => {
+      const { role, label, valid } = detectRoleFromEmail(regEmailInput.value);
+      detectedRoleLabel.textContent = label;
+      detectedRoleLabel.style.color = valid ? 'var(--green-dark)' : 'var(--danger)';
+
+      if (groupClass) {
+        // La clase solo se solicita para alumnos
+        groupClass.style.display = role === 'alumno' ? 'flex' : 'none';
+      }
+    });
+  }
 
   // Cargar dinámicamente las clases que existan en la BBDD
   async function loadClassesIntoSelect() {
@@ -36,17 +65,6 @@ if (requireGuest()) {
   }
 
   loadClassesIntoSelect();
-
-  if (selectRole && groupClass) {
-    selectRole.addEventListener('change', () => {
-      // Si es profesor o admin, la clase es opcional o puede ocultarse si se prefiere
-      if (selectRole.value === 'profesor') {
-        groupClass.style.display = 'none';
-      } else {
-        groupClass.style.display = 'flex';
-      }
-    });
-  }
 
   function showAlert(msg, type = 'danger') {
     if (type === 'danger' || type === 'error') {
@@ -114,8 +132,14 @@ if (requireGuest()) {
     const name = document.getElementById('reg-name').value.trim();
     const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
-    const role = document.getElementById('reg-role').value;
-    const class_name = document.getElementById('reg-class')?.value.trim() || null;
+    const { role, valid } = detectRoleFromEmail(email);
+
+    if (!valid) {
+      showError('Solo se permiten correos institucionales de la Generalitat Valenciana (@alu.edu.gva.es para alumnos o @edu.gva.es para profesores).', 'Dominio de correo no permitido');
+      return;
+    }
+
+    const class_name = role === 'alumno' ? (document.getElementById('reg-class')?.value.trim() || null) : null;
     const vehicle_brand = document.getElementById('reg-brand')?.value.trim() || null;
     const vehicle_model = document.getElementById('reg-model')?.value.trim() || null;
     const vehicle_plate = document.getElementById('reg-plate').value.trim();

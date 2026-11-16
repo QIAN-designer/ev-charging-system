@@ -148,7 +148,11 @@ class AutoDispatchService {
     // Configuración de franjas horarias
     const [startH, startM] = settings.charging_window_start.split(':').map(Number);
     const [endH, endM] = settings.charging_window_end.split(':').map(Number);
-    const slotDuration = settings.slot_duration_hours; // Ej: 2 horas
+
+    // Regla de intervalos:
+    // Todos los días: 3h por intervalo.
+    // Miércoles: primer intervalo de 2h, y los siguientes de 3h.
+    const isWednesday = target.getDay() === 3;
 
     // Generar las franjas horarias del día objetivo
     const timeSlots = [];
@@ -159,19 +163,25 @@ class AutoDispatchService {
     dayEndLimit.setHours(endH, endM, 0, 0);
 
     const now = new Date();
+    let slotIndex = 0;
 
     while (currentSlotStart < dayEndLimit) {
-      const slotEnd = new Date(currentSlotStart.getTime() + slotDuration * 3600 * 1000);
+      // Si es miércoles y es el primer slot del día -> 2 horas; de lo contrario -> 3 horas
+      const currentSlotDurationHours = (isWednesday && slotIndex === 0) ? 2 : 3;
+
+      const slotEnd = new Date(currentSlotStart.getTime() + currentSlotDurationHours * 3600 * 1000);
       if (slotEnd > dayEndLimit) break;
 
       // Solo franjas futuras
       if (currentSlotStart > now) {
         timeSlots.push({
           start: new Date(currentSlotStart),
-          end: new Date(slotEnd)
+          end: new Date(slotEnd),
+          durationHours: currentSlotDurationHours
         });
       }
       currentSlotStart = new Date(slotEnd);
+      slotIndex++;
     }
 
     if (timeSlots.length === 0) {

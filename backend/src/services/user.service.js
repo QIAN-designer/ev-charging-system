@@ -5,13 +5,30 @@ const db = require('../config/db');
 const VALID_ROLES = ['alumno', 'profesor', 'admin'];
 
 class UserService {
-  async register({ name, email, password, role = 'alumno', vehicle_plate = null, vehicle_brand = null, vehicle_model = null, class_name = null }) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedRole = role.toLowerCase();
-
-    if (!VALID_ROLES.includes(normalizedRole)) {
-      throw new Error(`Rol no válido. Permitidos: ${VALID_ROLES.join(', ')}`);
+  /**
+   * Determina el rol según el dominio institucional:
+   * - Si termina en @alu.edu.gva.es -> 'alumno'
+   * - Si termina en @edu.gva.es -> 'profesor'
+   * - Cualquier otro dominio no está permitido
+   */
+  resolveRoleFromEmail(email) {
+    const normalized = email.trim().toLowerCase();
+    if (normalized.endsWith('@alu.edu.gva.es')) {
+      return 'alumno';
     }
+    if (normalized.endsWith('@edu.gva.es')) {
+      return 'profesor';
+    }
+    const error = new Error('Solo se permiten correos institucionales de la Generalitat Valenciana (@alu.edu.gva.es para alumnos o @edu.gva.es para profesores).');
+    error.status = 400;
+    throw error;
+  }
+
+  async register({ name, email, password, role = null, vehicle_plate = null, vehicle_brand = null, vehicle_model = null, class_name = null }) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Asignación automática de rol basada estrictamente en el dominio del email
+    const assignedRole = this.resolveRoleFromEmail(normalizedEmail);
 
     const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [normalizedEmail]);
     if (existingUser.rows.length > 0) {
@@ -26,7 +43,7 @@ class UserService {
       `INSERT INTO users (name, email, password, role, vehicle_plate, vehicle_brand, vehicle_model, class_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, name, email, role, vehicle_plate, vehicle_brand, vehicle_model, class_name, created_at`,
-      [name, normalizedEmail, hashedPassword, normalizedRole, vehicle_plate, vehicle_brand, vehicle_model, class_name]
+      [name, normalizedEmail, hashedPassword, assignedRole, vehicle_plate, vehicle_brand, vehicle_model, assignedRole === 'alumno' ? class_name : null]
     );
 
     const user = result.rows[0];
