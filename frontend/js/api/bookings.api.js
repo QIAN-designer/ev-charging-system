@@ -7,22 +7,9 @@ export const bookingsApi = {
     });
   },
 
-  getChargerById: (id) => {
-    return apiRequest(`/chargers/${id}`, {
-      method: 'GET'
-    });
-  },
-
   getMyBookings: () => {
     return apiRequest('/bookings/my', {
       method: 'GET'
-    });
-  },
-
-  createBooking: (bookingData) => {
-    return apiRequest('/bookings', {
-      method: 'POST',
-      body: JSON.stringify(bookingData)
     });
   },
 

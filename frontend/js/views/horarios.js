@@ -1,5 +1,4 @@
 import { requireAuth } from '../guards/authGuard.js';
-import { storage } from '../utils/storage.js';
 import { bookingsApi } from '../api/bookings.api.js';
 import { initTheme } from '../utils/theme.js';
 import { setupUserMenu } from '../utils/userMenu.js';

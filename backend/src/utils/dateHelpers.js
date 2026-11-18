@@ -1,17 +1,4 @@
 /**
- * Comprueba si dos intervalos de tiempo se solapan
- * [startA, endA] y [startB, endB]
- */
-const areIntervalsOverlapping = (startA, endA, startB, endB) => {
-    const sA = new Date(startA).getTime();
-    const eA = new Date(endA).getTime();
-    const sB = new Date(startB).getTime();
-    const eB = new Date(endB).getTime();
-
-    return sA < eB && sB < eA;
-};
-
-/**
  * Valida si una fecha dada está en el futuro
  */
 const isFutureDate = date => {
@@ -27,7 +14,6 @@ const getDurationInHours = (startDate, endDate) => {
 };
 
 module.exports = {
-    areIntervalsOverlapping,
     isFutureDate,
     getDurationInHours,
 };

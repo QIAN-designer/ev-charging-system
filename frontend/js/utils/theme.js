@@ -26,7 +26,7 @@ export function toggleTheme() {
     }
 }
 
-export function applyTheme(theme) {
+function applyTheme(theme) {
     if (theme === "dark") {
         document.documentElement.setAttribute("data-theme", "dark");
     } else {
