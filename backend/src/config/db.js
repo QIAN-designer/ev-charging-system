@@ -77,6 +77,23 @@ const initDB = async () => {
       description VARCHAR(255),
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS incidents (
+      id SERIAL PRIMARY KEY,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      charger_id INT REFERENCES chargers(id) ON DELETE SET NULL,
+      type VARCHAR(50) NOT NULL,
+      title VARCHAR(150) NOT NULL,
+      description TEXT,
+      reported_vehicle_plate VARCHAR(30),
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'resolved', 'dismissed')),
+      admin_response TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents (status);
+    CREATE INDEX IF NOT EXISTS idx_incidents_user ON incidents (user_id);
   `;
 
     try {

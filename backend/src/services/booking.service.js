@@ -207,7 +207,18 @@ class BookingService {
     await this.syncExpiredBookings();
 
     // Determinar el Lunes de la semana seleccionada (o de la semana actual)
-    let refDate = weekStartStr ? new Date(weekStartStr) : new Date();
+    let refDate;
+    if (weekStartStr && typeof weekStartStr === 'string') {
+      const parts = weekStartStr.split('-').map(Number);
+      if (parts.length === 3) {
+        // Fijar a mediodía local para evitar desfases de medianoche UTC/CEST
+        refDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+      } else {
+        refDate = new Date(weekStartStr);
+      }
+    } else {
+      refDate = new Date();
+    }
     if (isNaN(refDate.getTime())) refDate = new Date();
 
     // Encontrar el lunes de esa semana
@@ -221,6 +232,12 @@ class BookingService {
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
+    const pad = (n) => String(n).padStart(2, '0');
+    const toLocalDateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    const mondayStr = toLocalDateStr(monday);
+    const sundayStr = toLocalDateStr(sunday);
+
     const res = await db.query(
       `SELECT b.id, b.start_time, b.end_time, b.status,
               u.id as user_id, u.name as user_name, u.email as user_email, u.role as user_role, u.class_name, u.vehicle_plate,
@@ -231,12 +248,12 @@ class BookingService {
        WHERE b.status IN ('active', 'completed')
          AND b.start_time >= $1 AND b.start_time <= $2
        ORDER BY b.start_time ASC, c.id ASC`,
-      [monday.toISOString(), sunday.toISOString()]
+      [`${mondayStr} 00:00:00`, `${sundayStr} 23:59:59`]
     );
 
     return {
-      week_start: monday.toISOString().split('T')[0],
-      week_end: sunday.toISOString().split('T')[0],
+      week_start: mondayStr,
+      week_end: sundayStr,
       bookings: res.rows
     };
   }

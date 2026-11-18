@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth.routes');
 const chargersRoutes = require('./routes/chargers.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
 const adminRoutes = require('./routes/admin.routes');
+const incidentsRoutes = require('./routes/incidents.routes');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chargers', chargersRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/incidents', incidentsRoutes);
 
 // Manejo de ruta no encontrada (404)
 app.use((req, res) => {
