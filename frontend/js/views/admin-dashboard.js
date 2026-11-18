@@ -2,6 +2,7 @@ import { requireAuth } from '../guards/authGuard.js';
 import { storage } from '../utils/storage.js';
 import { adminApi } from '../api/admin.api.js';
 import { bookingsApi } from '../api/bookings.api.js';
+import { incidentsApi } from '../api/incidents.api.js';
 import { formatDateTime } from '../utils/date.js';
 import { initTheme } from '../utils/theme.js';
 import { setupUserMenu } from '../utils/userMenu.js';
@@ -51,6 +52,9 @@ if (requireAuth({ requireAdmin: true })) {
       if (tab.getAttribute('data-tab') === 'tab-weekly-schedule') {
         loadAdminWeeklySchedule(adminCurrentWeekStart);
       }
+      if (tab.getAttribute('data-tab') === 'tab-incidents') {
+        loadIncidents(currentIncidentFilter);
+      }
     });
   });
 
@@ -68,6 +72,9 @@ if (requireAuth({ requireAdmin: true })) {
       if (elChargers) elChargers.textContent = s.total_chargers ?? 0;
       if (elActive) elActive.textContent = s.active_bookings ?? 0;
       if (elTotal) elTotal.textContent = s.total_bookings ?? 0;
+
+      // Conteo de incidencias pendientes
+      loadIncidentsBadge();
     } catch (err) {
       console.error('Error stats:', err);
     }
@@ -1184,6 +1191,15 @@ if (requireAuth({ requireAdmin: true })) {
   // ==========================================
   let adminCurrentWeekStart = null;
 
+  function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date();
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length === 3) {
+      return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    }
+    return new Date(dateStr);
+  }
+
   function toIsoDate(d) {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -1266,7 +1282,7 @@ if (requireAuth({ requireAdmin: true })) {
 
   if (btnAdminPrev) {
     btnAdminPrev.addEventListener('click', () => {
-      const cur = new Date(adminCurrentWeekStart);
+      const cur = parseLocalDate(adminCurrentWeekStart);
       cur.setDate(cur.getDate() - 7);
       adminCurrentWeekStart = toIsoDate(cur);
       loadAdminWeeklySchedule(adminCurrentWeekStart);
@@ -1275,7 +1291,7 @@ if (requireAuth({ requireAdmin: true })) {
 
   if (btnAdminNext) {
     btnAdminNext.addEventListener('click', () => {
-      const cur = new Date(adminCurrentWeekStart);
+      const cur = parseLocalDate(adminCurrentWeekStart);
       cur.setDate(cur.getDate() + 7);
       adminCurrentWeekStart = toIsoDate(cur);
       loadAdminWeeklySchedule(adminCurrentWeekStart);
@@ -1283,4 +1299,228 @@ if (requireAuth({ requireAdmin: true })) {
   }
 
   loadAutoDispatchStats();
+
+  // ==========================================
+  // GESTIÓN DE INCIDENCIAS & NOTIFICACIONES
+  // ==========================================
+  let currentIncidentFilter = 'all';
+  let cachedIncidents = [];
+
+  const statIncidentsCard = document.getElementById('stat-incidents-card');
+  if (statIncidentsCard) {
+    statIncidentsCard.addEventListener('click', () => {
+      const tabInc = document.querySelector('[data-tab="tab-incidents"]');
+      if (tabInc) tabInc.click();
+    });
+  }
+
+  async function loadIncidentsBadge() {
+    try {
+      const res = await incidentsApi.getPendingCount();
+      const count = res.data?.pendingCount || 0;
+      const badge = document.getElementById('tab-incidents-badge');
+      const statPending = document.getElementById('stat-pending-incidents');
+
+      if (statPending) statPending.textContent = count;
+      if (badge) {
+        if (count > 0) {
+          badge.textContent = count;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    } catch (e) {
+      console.error('Error cargando conteo de incidencias:', e);
+    }
+  }
+
+  const incidentFilterBtns = document.querySelectorAll('[data-incident-filter]');
+  incidentFilterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      incidentFilterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentIncidentFilter = btn.getAttribute('data-incident-filter');
+      loadIncidents(currentIncidentFilter);
+    });
+  });
+
+  const incidentsContainer = document.getElementById('incidents-table-container');
+
+  async function loadIncidents(status = 'all') {
+    if (!incidentsContainer) return;
+    incidentsContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--muted);">Cargando incidencias...</div>';
+
+    try {
+      const res = await incidentsApi.getAllIncidents(status);
+      cachedIncidents = res.data || [];
+
+      if (cachedIncidents.length === 0) {
+        incidentsContainer.innerHTML = `
+          <div style="padding: 40px; text-align: center; color: var(--muted);">
+            No hay incidencias registradas ${status !== 'all' ? `con estado "${status}"` : ''}.
+          </div>
+        `;
+        return;
+      }
+
+      const statusLabels = {
+        pending: { text: 'Pendiente', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+        in_progress: { text: 'En curso', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.12)' },
+        resolved: { text: 'Resuelta', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)' },
+        dismissed: { text: 'Desestimada', color: '#64748b', bg: 'rgba(100, 116, 139, 0.12)' }
+      };
+
+      const typeLabels = {
+        unauthorized_parking: '🚗 Vehículo no autorizado',
+        broken_charger: '⚠️ Cargador averiado / roto',
+        other: '💬 Otra incidencia'
+      };
+
+      incidentsContainer.innerHTML = cachedIncidents.map(inc => {
+        const st = statusLabels[inc.status] || { text: inc.status, color: 'var(--ink)', bg: 'var(--paper)' };
+        const typeText = typeLabels[inc.type] || inc.type;
+
+        return `
+          <div class="history-item" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 20px; border-bottom: 1px solid var(--line); gap: 16px;">
+            <div style="flex: 1;">
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--green-dark);">
+                  ${typeText}
+                </span>
+                <span style="color: var(--muted); font-size: 12px;">•</span>
+                <strong style="font-size: 13px; color: var(--ink);">
+                  ${inc.charger_name || 'Cargador #' + inc.charger_id} (${inc.charger_location || 'Plaza'})
+                </strong>
+                <span style="color: var(--muted); font-size: 12px;">•</span>
+                <span style="padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; background: ${st.bg}; color: ${st.color};">
+                  ${st.text}
+                </span>
+              </div>
+
+              <h4 style="font-size: 15px; margin: 0 0 6px; color: var(--ink); font-weight: 700;">
+                ${inc.title}
+              </h4>
+
+              ${inc.reported_vehicle_plate ? `
+                <div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: rgba(239, 68, 68, 0.12); border-radius: 6px; color: #dc2626; font-size: 12px; font-weight: 800; margin-bottom: 6px;">
+                  <span>🚘 Matrícula infractora:</span>
+                  <span style="letter-spacing: 1px;">${inc.reported_vehicle_plate}</span>
+                </div>
+              ` : ''}
+
+              ${inc.description ? `
+                <p style="font-size: 13px; color: var(--muted); margin: 4px 0 8px; line-height: 1.4;">
+                  ${inc.description}
+                </p>
+              ` : ''}
+
+              <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">
+                Reportado por <b>${inc.user_name}</b> (${inc.user_email} · ${inc.user_class || 'Sin grupo'}) · ${formatDateTime(inc.created_at)}
+              </div>
+
+              ${inc.admin_response ? `
+                <div style="margin-top: 10px; padding: 10px 14px; background: var(--paper); border-left: 3px solid var(--green); border-radius: 0 8px 8px 0; font-size: 12px;">
+                  <b>Tu respuesta:</b> ${inc.admin_response}
+                </div>
+              ` : ''}
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0;">
+              <button type="button" class="primary-button btn-manage-incident" data-id="${inc.id}" style="height: 36px; padding: 0 14px; font-size: 11px;">
+                Gestionar / Responder
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Escuchar botones de gestionar
+      incidentsContainer.querySelectorAll('.btn-manage-incident').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const incId = parseInt(btn.getAttribute('data-id'), 10);
+          const inc = cachedIncidents.find(i => i.id === incId);
+          if (inc) openIncidentManageModal(inc);
+        });
+      });
+
+      loadIncidentsBadge();
+    } catch (err) {
+      console.error('Error cargando incidencias admin:', err);
+      incidentsContainer.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--danger);">Error: ${err.message}</div>`;
+    }
+  }
+
+  // Modal de gestión de incidencia
+  const incModal = document.getElementById('incident-manage-modal');
+  const incModalClose = document.getElementById('btn-close-inc-modal');
+  const incModalCancel = document.getElementById('btn-cancel-inc-modal');
+  const incManageForm = document.getElementById('incident-manage-form');
+
+  function closeIncidentModal() {
+    if (incModal) incModal.style.display = 'none';
+  }
+
+  if (incModalClose) incModalClose.addEventListener('click', closeIncidentModal);
+  if (incModalCancel) incModalCancel.addEventListener('click', closeIncidentModal);
+  if (incModal) {
+    incModal.addEventListener('click', (e) => {
+      if (e.target === incModal) closeIncidentModal();
+    });
+  }
+
+  function openIncidentManageModal(inc) {
+    document.getElementById('inc-modal-id').value = inc.id;
+    document.getElementById('inc-modal-eyebrow').textContent = `Incidencia #${inc.id} · ${inc.charger_name || 'Cargador #' + inc.charger_id}`;
+    document.getElementById('inc-modal-title').textContent = inc.title;
+
+    const infoBox = document.getElementById('inc-modal-info');
+    infoBox.innerHTML = `
+      <div style="background: var(--paper); padding: 14px; border-radius: 12px; border: 1px solid var(--line);">
+        <div style="margin-bottom: 4px;"><b>Usuario afectado:</b> ${inc.user_name} (${inc.user_email})</div>
+        <div style="margin-bottom: 4px;"><b>Cargador / Ubicación:</b> ${inc.charger_name || ''} - ${inc.charger_location || ''}</div>
+        ${inc.reported_vehicle_plate ? `<div style="margin-bottom: 4px; color: #dc2626;"><b>Matrícula ocupando la plaza:</b> ${inc.reported_vehicle_plate}</div>` : ''}
+        ${inc.description ? `<div style="margin-top: 6px; font-style: italic; color: var(--muted);">"${inc.description}"</div>` : ''}
+      </div>
+    `;
+
+    document.getElementById('inc-modal-status').value = inc.status || 'pending';
+    document.getElementById('inc-modal-response').value = inc.admin_response || '';
+
+    if (incModal) incModal.style.display = 'flex';
+  }
+
+  if (incManageForm) {
+    incManageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const incId = document.getElementById('inc-modal-id').value;
+      const status = document.getElementById('inc-modal-status').value;
+      const adminResponse = document.getElementById('inc-modal-response').value.trim();
+      const submitBtn = incManageForm.querySelector('button[type="submit"]');
+
+      try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando...';
+        }
+
+        await incidentsApi.updateIncidentStatus(incId, {
+          status,
+          admin_response: adminResponse
+        });
+
+        closeIncidentModal();
+        showSuccess('La incidencia ha sido actualizada y el usuario podrá ver tu respuesta.', 'Incidencia actualizada');
+        loadIncidents(currentIncidentFilter);
+        loadIncidentsBadge();
+      } catch (err) {
+        showError(err.message || 'Error al actualizar la incidencia.', 'Error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Guardar y Notificar';
+        }
+      }
+    });
+  }
 }

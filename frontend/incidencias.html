@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Voltio | Incidencias y Avisos</title>
+  
+  <link rel="stylesheet" href="css/minimalist.css">
+  <style>
+    .incident-type-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .incident-type-option {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .incident-type-option:hover {
+      border-color: var(--green);
+    }
+    .incident-type-option.selected {
+      background: rgba(185, 244, 70, 0.1);
+      border-color: var(--green);
+      box-shadow: 0 0 0 1px var(--green);
+    }
+    .incident-type-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .incident-type-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .incident-type-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .incident-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 14px;
+      transition: transform 0.2s ease;
+    }
+    .incident-card:hover {
+      border-color: var(--muted);
+    }
+    .incident-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .incident-badge-status {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .incident-badge-status.pending {
+      background: rgba(245, 158, 11, 0.15);
+      color: #d97706;
+    }
+    .incident-badge-status.in_progress {
+      background: rgba(59, 130, 246, 0.15);
+      color: #2563eb;
+    }
+    .incident-badge-status.resolved {
+      background: rgba(34, 197, 94, 0.15);
+      color: #16a34a;
+    }
+    .incident-badge-status.dismissed {
+      background: rgba(100, 116, 139, 0.15);
+      color: #64748b;
+    }
+    .incident-admin-reply {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--paper);
+      border-left: 3px solid var(--green);
+      border-radius: 0 10px 10px 0;
+      font-size: 12px;
+    }
+    .incident-admin-reply strong {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    /* Soporte Modo Oscuro */
+    :root[data-theme='dark'] .card-clean,
+    :root[data-theme='dark'] .incident-card {
+      background: var(--white);
+      border-color: var(--line);
+    }
+    :root[data-theme='dark'] .incident-type-option {
+      background: var(--paper);
+      border-color: var(--line);
+    }
+    :root[data-theme='dark'] .incident-type-option.selected {
+      background: rgba(185, 244, 70, 0.15);
+      border-color: var(--green);
+    }
+    :root[data-theme='dark'] .incident-type-title {
+      color: var(--ink);
+    }
+    :root[data-theme='dark'] .incident-admin-reply {
+      background: var(--paper);
+      border-left-color: var(--green);
+      color: var(--ink);
+    }
+    :root[data-theme='dark'] .incident-admin-reply strong {
+      color: var(--green);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- Sidebar Minimalista Voltio -->
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
+          </svg>
+        </span>
+        <span>voltio</span>
+      </div>
+
+      <nav class="side-nav" aria-label="Navegación principal">
+        <a class="nav-item" href="index.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9 20v-6h6v6"/>
+          </svg>
+          <span>Inicio</span>
+        </a>
+        <a class="nav-item" href="reservas.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18"/>
+          </svg>
+          <span>Mis Reservas</span>
+        </a>
+        <a class="nav-item" href="horarios.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>Horarios</span>
+        </a>
+        <a class="nav-item active" href="incidencias.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>Incidencias</span>
+        </a>
+        <a id="nav-admin-link" style="display: none;" class="nav-item" href="admin-dashboard.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>
+          </svg>
+          <span>Admin</span>
+        </a>
+      </nav>
+
+      <div class="side-foot">
+        <button class="user-mini" id="user-profile-trigger">
+          <span class="avatar" id="user-avatar-initials">--</span>
+          <span class="user-mini-info">
+            <strong id="user-display-name">Cargando...</strong>
+            <small id="user-display-role">Usuario</small>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted);">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Área Principal -->
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">Atención al Usuario</span>
+          <h1>Avisos e Incidencias</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="theme-toggle-btn" class="theme-button" type="button" aria-label="Cambiar tema"></button>
+          <button id="btn-logout" class="icon-button" title="Cerrar Sesión" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <!-- Formulario de Reporte -->
+        <section class="section-block" style="margin-top: 0;">
+          <div class="card-clean" style="padding: 28px; background: var(--white); border: 1px solid var(--line); border-radius: 20px;">
+            <div style="margin-bottom: 20px;">
+              <span class="eyebrow">Nuevo reporte</span>
+              <h2 style="font-size: 20px; margin: 4px 0;">Notificar un problema con un cargador</h2>
+              <p style="font-size: 13px; color: var(--muted); margin: 0;">
+                Envía una notificación al administrador si encuentras un vehículo no autorizado ocupando tu plaza, si el punto está estropeado o ante cualquier fallo.
+              </p>
+            </div>
+
+            <form id="incident-form">
+              <label style="display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 8px;">
+                Tipo de incidencia *
+              </label>
+              <div class="incident-type-selector">
+                <label class="incident-type-option selected" id="opt-unauthorized">
+                  <input type="radio" name="incident-type" value="unauthorized_parking" checked>
+                  <span class="incident-type-title">
+                    🚗 Vehículo no autorizado
+                  </span>
+                  <span class="incident-type-desc">
+                    Un coche que no tiene reserva o no le toca está ocupando la plaza.
+                  </span>
+                </label>
+
+                <label class="incident-type-option" id="opt-broken">
+                  <input type="radio" name="incident-type" value="broken_charger">
+                  <span class="incident-type-title">
+                    ⚠️ Cargador averiado / roto
+                  </span>
+                  <span class="incident-type-desc">
+                    El enchufe no funciona, la pantalla da error o la manguera está dañada.
+                  </span>
+                </label>
+
+                <label class="incident-type-option" id="opt-other">
+                  <input type="radio" name="incident-type" value="other">
+                  <span class="incident-type-title">
+                    💬 Otra incidencia
+                  </span>
+                  <span class="incident-type-desc">
+                    Dificultad de acceso, fallo de identificación u otro motivo.
+                  </span>
+                </label>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                <div>
+                  <label for="incident-charger" style="display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 6px;">
+                    Cargador afectado *
+                  </label>
+                  <select id="incident-charger" class="input-field" style="width: 100%; height: 42px; border-radius: 10px;" required>
+                    <option value="">Selecciona el cargador...</option>
+                    <option value="1">Cargador 1 - Patio A (Plaza 01)</option>
+                    <option value="2">Cargador 2 - Patio A (Plaza 02)</option>
+                    <option value="3">Cargador 3 - Taller Automoción (Plaza 03)</option>
+                    <option value="4">Cargador 4 - Taller Automoción (Plaza 04)</option>
+                  </select>
+                </div>
+
+                <div id="field-vehicle-plate">
+                  <label for="incident-plate" style="display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 6px;">
+                    Matrícula del vehículo infractor
+                  </label>
+                  <input type="text" id="incident-plate" class="input-field" placeholder="Ej: 1234-BCD" style="width: 100%; height: 42px; border-radius: 10px; text-transform: uppercase;">
+                </div>
+              </div>
+
+              <div style="margin-bottom: 16px;">
+                <label for="incident-title" style="display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 6px;">
+                  Asunto / Título breve *
+                </label>
+                <input type="text" id="incident-title" class="input-field" placeholder="Ej: Coche blanco ocupando el cargador 2 sin reserva" style="width: 100%; height: 42px; border-radius: 10px;" required>
+              </div>
+
+              <div style="margin-bottom: 20px;">
+                <label for="incident-desc" style="display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 6px;">
+                  Descripción detallada
+                </label>
+                <textarea id="incident-desc" class="input-field" rows="3" placeholder="Explica lo sucedido con el mayor detalle posible para que el administrador pueda gestionarlo rápidamente..." style="width: 100%; padding: 10px; border-radius: 10px; resize: vertical;"></textarea>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end;">
+                <button type="submit" id="btn-submit-incident" class="primary-button" style="height: 44px; padding: 0 24px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Enviar aviso al administrador
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Historial de mis incidencias reportadas -->
+        <section class="section-block" style="margin-top: 36px;">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Seguimiento</span>
+              <h2 style="font-size: 20px;">Mis incidencias reportadas</h2>
+            </div>
+            <button type="button" id="btn-refresh-incidents" class="secondary-button" style="border-color: var(--line); background: var(--white);">
+              🔄 Actualizar
+            </button>
+          </div>
+
+          <div id="my-incidents-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando tus incidencias...</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script type="module" src="js/views/incidencias.js"></script>
+</body>
+</html>

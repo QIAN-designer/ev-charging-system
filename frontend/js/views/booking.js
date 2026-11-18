@@ -1,16 +1,22 @@
 import { requireAuth } from '../guards/authGuard.js';
 import { storage } from '../utils/storage.js';
 import { bookingsApi } from '../api/bookings.api.js';
-import { toInputDateTime, addHours } from '../utils/date.js';
 import { initTheme } from '../utils/theme.js';
 import { setupUserMenu } from '../utils/userMenu.js';
-import { showError } from '../utils/alerts.js';
+import { showError, showConfirm, showSuccess } from '../utils/alerts.js';
 
 if (requireAuth()) {
   initTheme();
   setupUserMenu();
-  const user = storage.getUser();
+  const user = storage.getUser() || {};
   let allChargers = [];
+
+  // Saludo personalizado
+  const greetingEl = document.getElementById('hero-user-name');
+  if (greetingEl) {
+    const firstName = (user.name || 'Alumno').split(' ')[0];
+    greetingEl.textContent = firstName;
+  }
 
   // Logout en topbar
   const btnLogout = document.getElementById('btn-logout');
@@ -21,47 +27,7 @@ if (requireAuth()) {
     });
   }
 
-  // Elementos del Modal de Reserva
-  const modal = document.getElementById('booking-modal');
-  const modalName = document.getElementById('modal-station-name');
-  const modalChargerId = document.getElementById('modal-charger-id');
-  const modalStart = document.getElementById('modal-input-start');
-  const modalEnd = document.getElementById('modal-input-end');
-  const modalError = document.getElementById('modal-error-alert');
-  const modalRoleHint = document.getElementById('modal-role-hint');
-  const btnCloseModal = document.getElementById('btn-close-modal');
-  const btnCancelModal = document.getElementById('btn-cancel-modal');
-  const modalForm = document.getElementById('booking-modal-form');
-  const homeAlert = document.getElementById('home-alert');
-
-  const maxHours = user.role === 'alumno' ? 2 : user.role === 'profesor' ? 4 : 8;
-  if (modalRoleHint) {
-    modalRoleHint.innerHTML = `<strong>Permiso: ${user.role.toUpperCase()}</strong>. Tiempo máximo continuo permitido: <strong>${maxHours} horas</strong> por reserva.`;
-  }
-
-  function openBookingModal(charger) {
-    modalChargerId.value = charger.id;
-    modalName.textContent = `${charger.name} (${charger.power_kw} kW)`;
-    if (modalError) {
-      modalError.classList.remove('visible');
-      modalError.textContent = '';
-    }
-
-    const now = new Date(Date.now() + 5 * 60 * 1000);
-    modalStart.value = toInputDateTime(now);
-    modalEnd.value = toInputDateTime(addHours(now, 1));
-
-    modal.style.display = 'flex';
-  }
-
-  function closeBookingModal() {
-    modal.style.display = 'none';
-  }
-
-  if (btnCloseModal) btnCloseModal.addEventListener('click', closeBookingModal);
-  if (btnCancelModal) btnCancelModal.addEventListener('click', closeBookingModal);
-
-  // Paleta de tonos visuales idénticos a Voltio
+  // Paleta de tonos visuales para los cargadores
   const tones = ['tone-lime', 'tone-blue', 'tone-sand'];
 
   function getInitials(name) {
@@ -73,21 +39,151 @@ if (requireAuth()) {
     return name.substring(0, 2).toUpperCase();
   }
 
+  // Formatear fecha y hora legible
+  function formatSlotDateTime(isoStart, isoEnd) {
+    const s = new Date(isoStart);
+    const e = new Date(isoEnd);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const startHour = `${pad(s.getHours())}:${pad(s.getMinutes())}`;
+    const endHour = `${pad(e.getHours())}:${pad(e.getMinutes())}`;
+
+    const options = { weekday: 'short', day: 'numeric', month: 'short' };
+    const dateFormatted = s.toLocaleDateString('es-ES', options);
+
+    return {
+      dateFormatted,
+      startHour,
+      endHour,
+      isToday: s.toDateString() === new Date().toDateString()
+    };
+  }
+
+  // 1. Cargar y mostrar el próximo turno personal del alumno
+  async function loadUserUpcomingSlot() {
+    const heroBox = document.getElementById('hero-next-slot-box');
+    const slotBody = document.getElementById('hero-slot-body');
+    const statHours = document.getElementById('stat-user-hours');
+    const statBookingsCount = document.getElementById('stat-user-bookings-count');
+    const statPlate = document.getElementById('stat-user-plate');
+    const statModel = document.getElementById('stat-user-model');
+
+    if (statPlate) {
+      statPlate.textContent = user.vehicle_plate || 'Sin matrícula';
+    }
+    if (statModel) {
+      const brandModel = [user.vehicle_brand, user.vehicle_model].filter(Boolean).join(' ');
+      statModel.textContent = brandModel || (user.vehicle_plate ? 'Vehículo activo' : 'Registra tu coche en Mi perfil');
+    }
+
+    try {
+      const res = await bookingsApi.getMyBookings();
+      const myBookings = res.data || [];
+
+      // Calcular horas totales completadas/activas
+      let totalChargedHours = 0;
+      let completedCount = 0;
+
+      const now = new Date();
+      // Encontrar la próxima reserva activa futura o en curso
+      const futureOrActive = myBookings
+        .filter(b => b.status === 'active' && new Date(b.end_time) >= now)
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+      myBookings.forEach(b => {
+        if (b.status === 'completed' || b.status === 'active') {
+          const diffMs = new Date(b.end_time) - new Date(b.start_time);
+          totalChargedHours += diffMs / (1000 * 3600);
+          completedCount++;
+        }
+      });
+
+      if (statHours) statHours.textContent = `${totalChargedHours.toFixed(1)} h`;
+      if (statBookingsCount) statBookingsCount.textContent = completedCount;
+
+      if (!slotBody) return;
+
+      if (futureOrActive.length > 0) {
+        const next = futureOrActive[0];
+        const { dateFormatted, startHour, endHour, isToday } = formatSlotDateTime(next.start_time, next.end_time);
+
+        if (heroBox) heroBox.classList.add('has-booking');
+
+        slotBody.innerHTML = `
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+            <strong style="font-size: 16px; color: var(--ink); text-transform: capitalize;">
+              ${isToday ? '¡Hoy!' : dateFormatted}
+            </strong>
+            <span style="font-size: 12px; font-weight: 700; color: var(--green-dark); background: rgba(185, 244, 70, 0.15); padding: 2px 8px; border-radius: 6px;">
+              ${startHour} – ${endHour}
+            </span>
+          </div>
+          <div style="font-size: 12px; color: var(--ink); margin-top: 4px;">
+            ⚡ <b>${next.charger_name || 'Cargador #' + next.charger_id}</b>
+          </div>
+          <div style="font-size: 11px; color: var(--muted); line-height: 1.4;">
+            ${next.location_description || 'Aparcamiento del campus'}
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="secondary-button btn-cancel-home-slot" data-id="${next.id}" style="height: 32px; font-size: 11px; padding: 0 12px; color: var(--danger); border-color: rgba(239, 68, 68, 0.25);">
+              Anular si no te viene bien
+            </button>
+          </div>
+        `;
+
+        const btnCancel = slotBody.querySelector('.btn-cancel-home-slot');
+        if (btnCancel) {
+          btnCancel.addEventListener('click', async () => {
+            const confirmed = await showConfirm(
+              '¿Deseas liberar tu plaza para este turno? La franja quedará libre para que otro compañero pueda cargar.',
+              'Liberar plaza de carga',
+              'Sí, anular plaza'
+            );
+            if (!confirmed) return;
+
+            try {
+              await bookingsApi.cancelBooking(next.id);
+              showSuccess('Tu turno ha sido liberado correctamente.');
+              await loadUserUpcomingSlot();
+              await fetchChargers();
+            } catch (err) {
+              showError(err.message, 'No se pudo cancelar el turno');
+            }
+          });
+        }
+      } else {
+        if (heroBox) heroBox.classList.remove('has-booking');
+        slotBody.innerHTML = `
+          <strong style="font-size: 15px; color: var(--ink); display: block;">
+            Sin turno próximo
+          </strong>
+          <p style="margin: 4px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4;">
+            El sistema de equidad asignará tu siguiente turno en la próxima planificación semanal.
+          </p>
+          <div style="margin-top: 8px;">
+            <a href="horarios.html" style="font-size: 11px; font-weight: 700; color: var(--green-dark); text-decoration: underline;">
+              Consultar cuadrante de clases →
+            </a>
+          </div>
+        `;
+      }
+    } catch (err) {
+      console.error('Error cargando próximo turno:', err);
+      if (slotBody) {
+        slotBody.innerHTML = `
+          <span style="font-size: 12px; color: var(--muted);">No se pudo obtener tu información de reservas.</span>
+        `;
+      }
+    }
+  }
+
+  // 2. Renderizar puntos de recarga en formato puramente informativo (sin botón de reserva manual)
   function renderChargers(chargers) {
     const container = document.getElementById('chargers-container');
     const badge = document.getElementById('chargers-count-badge');
-    const freeSpotsEl = document.getElementById('hero-free-spots');
-    const mapTotalEl = document.getElementById('map-total-count');
 
-    const availableCount = allChargers.filter(c => c.status === 'available').length;
-    if (freeSpotsEl) {
-      freeSpotsEl.textContent = `${availableCount} puntos libres cerca de ti`;
-    }
-    if (mapTotalEl) {
-      mapTotalEl.textContent = allChargers.length;
-    }
     if (badge) {
-      badge.textContent = `${chargers.length} puntos`;
+      badge.textContent = `${chargers.length} cargadores`;
     }
 
     if (!container) return;
@@ -95,7 +191,7 @@ if (requireAuth()) {
     if (chargers.length === 0) {
       container.innerHTML = `
         <div style="padding: 40px; text-align: center; color: var(--muted); grid-column: 1/-1;">
-          No se encontraron puntos de carga con los filtros seleccionados.
+          No hay cargadores registrados en el centro.
         </div>
       `;
       return;
@@ -105,22 +201,18 @@ if (requireAuth()) {
       const tone = tones[idx % tones.length];
       const letter = getInitials(c.name);
 
-      let statusClass = 'available';
-      let statusText = 'Disponible';
-      let canReserve = true;
+      let statusDotClass = 'idle';
+      let statusText = 'Operativo';
 
       if (c.status === 'occupied') {
-        statusClass = 'occupied';
-        statusText = 'En Carga';
-        canReserve = false;
-      } else if (c.status === 'reserved') {
-        statusClass = 'reserved';
-        statusText = 'Reservado';
-        canReserve = true;
-      } else if (c.status !== 'available') {
-        statusClass = 'unavailable';
-        statusText = 'No operativo';
-        canReserve = false;
+        statusDotClass = 'active';
+        statusText = 'En servicio lectivo';
+      } else if (c.status === 'maintenance' || c.status === 'out_of_service') {
+        statusDotClass = 'break';
+        statusText = 'En mantenimiento';
+      } else {
+        statusDotClass = 'active';
+        statusText = 'Disponible para turnos';
       }
 
       return `
@@ -136,48 +228,30 @@ if (requireAuth()) {
           <div class="station-info">
             <div class="station-title">
               <div>
-                <h3>${c.name}</h3>
+                <h3 style="font-size: 16px;">${c.name}</h3>
                 <p>${c.location_description || 'Campus Principal · Instituto'}</p>
               </div>
-              <span class="distance">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>
-                </svg>
+              <span class="distance" style="font-weight: 700; color: var(--ink);">
                 ${c.power_kw} kW
               </span>
             </div>
-            <div class="station-meta">
-              <span class="status-badge-inline ${statusClass}">
-                <i></i> ${statusText}
+            <div class="station-meta" style="margin-top: 8px;">
+              <span class="status-badge-inline ${c.status === 'available' ? 'available' : 'unavailable'}">
+                <i class="charger-status-dot ${statusDotClass}"></i> ${statusText}
               </span>
-              <span>0,00 €/kWh</span>
+              <span style="font-size: 11px; color: var(--muted);">Tarde: 15:10–21:00</span>
             </div>
-            <button class="text-button btn-book-trigger" data-id="${c.id}" ${!canReserve ? 'disabled style="opacity: 0.45; cursor: not-allowed;"' : ''}>
-              ${user.role === 'alumno' ? 'Asignación automática' : (canReserve ? 'Reservar plaza' : 'No disponible')}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14M14 7l5 5-5 5"/>
-              </svg>
-            </button>
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; color: var(--muted);">Turnos automáticos</span>
+              <a href="horarios.html" style="font-size: 11px; font-weight: 700; color: var(--green-dark); display: inline-flex; align-items: center; gap: 4px;">
+                Ver en cuadrante
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </a>
+            </div>
           </div>
         </article>
       `;
     }).join('');
-
-    container.querySelectorAll('.btn-book-trigger').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (user.role === 'alumno') {
-          showError(
-            'Las reservas para alumnos son asignadas automáticamente por la aplicación mediante el algoritmo de reparto inteligente según tu consumo. Puedes revisar tu plaza en "Mis Reservas" y cancelarla si no te viene bien el horario.',
-            'Asignación inteligente'
-          );
-          return;
-        }
-
-        const id = parseInt(btn.getAttribute('data-id'), 10);
-        const target = allChargers.find(x => x.id === id);
-        if (target) openBookingModal(target);
-      });
-    });
   }
 
   async function fetchChargers() {
@@ -186,85 +260,11 @@ if (requireAuth()) {
       allChargers = res.data || [];
       renderChargers(allChargers);
     } catch (err) {
-      showError(err.message, 'Error al cargar estaciones');
-      const container = document.getElementById('chargers-container');
-      if (container) {
-        container.innerHTML = `<div style="padding: 30px; text-align: center; color: var(--danger); grid-column: 1/-1;">Error al cargar estaciones: ${err.message}</div>`;
-      }
+      console.error('Error cargando cargadores:', err);
     }
   }
 
-  // Buscador
-  const searchInput = document.getElementById('search-charger-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      const val = e.target.value.toLowerCase().trim();
-      const filtered = allChargers.filter(c =>
-        c.name.toLowerCase().includes(val) ||
-        (c.location_description && c.location_description.toLowerCase().includes(val)) ||
-        String(c.power_kw).includes(val)
-      );
-      renderChargers(filtered);
-    });
-  }
-
-  // Botones de filtro
-  const btnAll = document.getElementById('filter-all');
-  const btnAvail = document.getElementById('filter-available');
-  if (btnAll && btnAvail) {
-    btnAll.addEventListener('click', () => {
-      btnAll.classList.add('active');
-      btnAvail.classList.remove('active');
-      renderChargers(allChargers);
-    });
-    btnAvail.addEventListener('click', () => {
-      btnAvail.classList.add('active');
-      btnAll.classList.remove('active');
-      renderChargers(allChargers.filter(c => c.status === 'available'));
-    });
-  }
-
-  // Formulario Modal
-  if (modalForm) {
-    modalForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const submitBtn = document.getElementById('btn-confirm-booking');
-      if (modalError) modalError.classList.remove('visible');
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Procesando...';
-
-      try {
-        const charger_id = parseInt(modalChargerId.value, 10);
-        const start_time = new Date(modalStart.value).toISOString();
-        const end_time = new Date(modalEnd.value).toISOString();
-
-        await bookingsApi.createBooking({
-          charger_id,
-          start_time,
-          end_time
-        });
-
-        closeBookingModal();
-        if (homeAlert) {
-          homeAlert.className = 'alert-clean alert-success visible';
-          homeAlert.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
-            <span>¡Reserva completada con éxito! Puedes consultar tu ticket y código en <a href="reservas.html" style="text-decoration: underline; font-weight: 700;">Reservas</a>.</span>
-          `;
-          setTimeout(() => homeAlert.classList.remove('visible'), 6000);
-        }
-
-        await fetchChargers();
-
-      } catch (err) {
-        showError(err.message, 'No se pudo completar la reserva');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `Confirmar reserva <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5"/></svg>`;
-      }
-    });
-  }
-
+  // Inicialización
+  loadUserUpcomingSlot();
   fetchChargers();
 }

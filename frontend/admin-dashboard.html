@@ -311,6 +311,12 @@
           </svg>
           <span>Horarios</span>
         </a>
+        <a class="nav-item" href="incidencias.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>Incidencias</span>
+        </a>
         <a class="nav-item active" href="admin-dashboard.html">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>
@@ -401,6 +407,17 @@
               <p><b id="stat-total-bookings">0</b> históricas en total</p>
             </div>
           </article>
+
+          <article class="stat-card-clean" id="stat-incidents-card" style="cursor: pointer;">
+            <span class="stat-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.12);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            <div>
+              <small>Incidencias pendientes</small>
+              <strong id="stat-pending-incidents" style="color: #f59e0b;">0</strong>
+              <p>Avisos de alumnos / cargadores</p>
+            </div>
+          </article>
         </section>
 
         <div id="admin-alert" class="alert-clean" style="margin-top: 20px;"></div>
@@ -410,6 +427,10 @@
           <button class="admin-tab-btn active" data-tab="tab-chargers" type="button">Cargadores</button>
           <button class="admin-tab-btn" data-tab="tab-bookings" type="button">Todas las reservas</button>
           <button class="admin-tab-btn" data-tab="tab-weekly-schedule" type="button">Horario Semanal de Carga</button>
+          <button class="admin-tab-btn" data-tab="tab-incidents" type="button" style="position: relative;">
+            Incidencias y Notificaciones
+            <span id="tab-incidents-badge" style="display: none; margin-left: 6px; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 800; background: #ef4444; color: #fff;">0</span>
+          </button>
           <button class="admin-tab-btn" data-tab="tab-users" type="button">Directorio de usuarios</button>
           <button class="admin-tab-btn" data-tab="tab-auto-dispatch" type="button">Reparto Inteligente</button>
           <button class="admin-tab-btn" data-tab="tab-schedules" type="button">Horarios de clases</button>
@@ -487,6 +508,29 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+
+        <!-- Panel 2.6: Incidencias y Notificaciones del Campus -->
+        <section id="tab-incidents" class="admin-tab-pane">
+          <div class="schedule-import-card" style="margin-bottom: 20px;">
+            <div>
+              <span class="eyebrow">Bandeja de Notificaciones y Avisos</span>
+              <h3 style="margin: 4px 0 4px; font-size: 16px;">Gestión de Incidencias Reportadas</h3>
+              <p style="margin: 0; font-size: 12px; color: var(--muted);">
+                Avisos enviados por alumnos y profesores: coches no autorizados ocupando plazas, cargadores averiados, incidencias técnicas, etc.
+              </p>
+            </div>
+            <div class="bookings-filter-pills" role="group" aria-label="Filtrar incidencias">
+              <button type="button" class="booking-filter-btn active" data-incident-filter="all">Todas</button>
+              <button type="button" class="booking-filter-btn" data-incident-filter="pending">Pendientes</button>
+              <button type="button" class="booking-filter-btn" data-incident-filter="in_progress">En curso</button>
+              <button type="button" class="booking-filter-btn" data-incident-filter="resolved">Resueltas</button>
+            </div>
+          </div>
+
+          <div class="history-list" id="incidents-table-container">
+            <div style="padding: 30px; text-align: center; color: var(--muted);">Cargando incidencias...</div>
           </div>
         </section>
 
@@ -870,6 +914,47 @@
         <div class="modal-footer-clean">
           <button type="button" id="btn-cancel-scheduler-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
           <button type="submit" class="primary-button">Guardar Programación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Gestión y Respuesta de Incidencias -->
+  <div id="incident-manage-modal" class="minimal-modal-backdrop" style="display: none;">
+    <div class="minimal-modal-box" style="max-width: 560px;">
+      <div class="modal-header-clean">
+        <div>
+          <span class="eyebrow" id="inc-modal-eyebrow">Incidencia #--</span>
+          <h3 id="inc-modal-title" style="margin: 2px 0 0;">Gestión de Incidencia</h3>
+        </div>
+        <button class="icon-button" id="btn-close-inc-modal" type="button" aria-label="Cerrar modal" style="width: 34px; height: 34px;">&times;</button>
+      </div>
+
+      <form id="incident-manage-form" class="modal-body-clean">
+        <input type="hidden" id="inc-modal-id">
+
+        <div id="inc-modal-info" style="font-size: 13px; line-height: 1.5;">
+          <!-- Detalles cargados dinámicamente -->
+        </div>
+
+        <div>
+          <label class="label-text" for="inc-modal-status">Estado de la resolución</label>
+          <select id="inc-modal-status" class="input-field" required>
+            <option value="pending">Pendiente (Aviso recibido sin revisar)</option>
+            <option value="in_progress">En curso (Revisando / personal avisado)</option>
+            <option value="resolved">Resuelta (Vehículo retirado / punto reparado)</option>
+            <option value="dismissed">Desestimada (Falsa alarma / no procede)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="label-text" for="inc-modal-response">Respuesta visible para el alumno / usuario</label>
+          <textarea id="inc-modal-response" class="input-field" rows="3" style="height: auto; padding: 10px 14px; resize: vertical;" placeholder="Escribe aquí la respuesta o medidas tomadas (ej: 'Hemos avisado al dueño del vehículo y ya ha liberado la plaza')."></textarea>
+        </div>
+
+        <div class="modal-footer-clean" style="margin: 8px -26px -24px; padding: 16px 26px;">
+          <button type="button" id="btn-cancel-inc-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cerrar</button>
+          <button type="submit" class="primary-button">Guardar y Notificar</button>
         </div>
       </form>
     </div>

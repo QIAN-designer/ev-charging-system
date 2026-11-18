@@ -3,9 +3,79 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>Voltio | Parking Eléctrico Minimalista</title>
+  <title>Voltio | Panel de Carga del Alumno</title>
   
   <link rel="stylesheet" href="css/minimalist.css">
+  <style>
+    .home-hero-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(23, 34, 29, 0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    :root[data-theme='dark'] .home-hero-card {
+      background: var(--white);
+      border-color: var(--line);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    }
+    .home-hero-content {
+      flex: 1;
+      min-width: 280px;
+    }
+    .home-hero-slot {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px 24px;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .home-hero-slot.has-booking {
+      background: rgba(185, 244, 70, 0.08);
+      border-color: rgba(185, 244, 70, 0.35);
+    }
+    .charger-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .charger-status-dot.active {
+      background: var(--green-dark);
+      box-shadow: 0 0 0 3px rgba(185, 244, 70, 0.3);
+    }
+    .charger-status-dot.break {
+      background: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+    }
+    .charger-status-dot.idle {
+      background: var(--muted);
+    }
+    .info-strip-card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    :root[data-theme='dark'] .info-strip-card {
+      background: var(--white);
+    }
+  </style>
 </head>
 <body>
 
@@ -21,7 +91,7 @@
         <span>voltio</span>
       </div>
 
-      <nav class="side-nav" aria-label="Navegación principal">
+      <nav class="side-nav">
         <a class="nav-item active" href="index.html">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9 20v-6h6v6"/>
@@ -32,13 +102,19 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18"/>
           </svg>
-          <span>Reservas</span>
+          <span>Mis Reservas</span>
         </a>
         <a class="nav-item" href="horarios.html">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
           <span>Horarios</span>
+        </a>
+        <a class="nav-item" href="incidencias.html">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span>Incidencias</span>
         </a>
         <a id="nav-admin-link" style="display: none;" class="nav-item" href="admin-dashboard.html">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -49,16 +125,6 @@
       </nav>
 
       <div class="side-foot">
-        <div class="eco-card">
-          <span class="eco-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 4C10 4 5 9 5 16c5 1 12-1 15-12Z"/><path d="M4 21c2-5 6-8 11-11"/>
-            </svg>
-          </span>
-          <strong>100% Eco</strong>
-          <span>Energía solar del campus</span>
-        </div>
-
         <button class="user-mini" id="user-profile-trigger">
           <span class="avatar" id="user-avatar-initials">--</span>
           <span class="user-mini-info">
@@ -75,9 +141,9 @@
     <!-- Área Principal -->
     <main class="main">
       <header class="topbar">
-        <div class="topbar-titles">
-          <span class="eyebrow">Voltio parking</span>
-          <h1>Plazas de Carga Eléctrica</h1>
+        <div>
+          <span class="eyebrow">Panel Personal</span>
+          <h1>Estado de tu Recarga</h1>
         </div>
 
         <div class="topbar-actions">
@@ -93,94 +159,97 @@
       </header>
 
       <div class="page-content">
-        <!-- Hero Section Minimalista con Mapa Integrado -->
-        <section class="hero">
-          <div class="hero-copy">
+        <!-- Hero Personalizado: Tu próximo turno de carga -->
+        <section class="home-hero-card">
+          <div class="home-hero-content">
             <span class="kicker">
-              <i></i> <span id="hero-free-spots">Calculando disponibilidad...</span>
+              <i></i> Asignación Inteligente de Plazas
             </span>
-            <h2>
-              Tu próxima carga,<br/>
-              <em>sin vueltas.</em>
+            <h2 id="hero-greeting" style="font-family: 'Manrope', sans-serif; font-size: 28px; margin: 8px 0 6px; font-weight: 800;">
+              Hola, <span id="hero-user-name">Alumno</span>
             </h2>
-            <p>
-              Encuentra y reserva aparcamiento con recarga para tu vehículo en el centro educativo.
+            <p id="hero-summary-text" style="color: var(--muted); font-size: 14px; margin: 0 0 20px; max-width: 500px; line-height: 1.5;">
+              Tus turnos se asignan de forma automática cada semana según la disponibilidad de cargadores y tu consumo acumulado.
             </p>
 
-            <div class="search-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted);">
-                <circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>
-              </svg>
-              <input id="search-charger-input" aria-label="Buscar estación" placeholder="¿Qué punto buscas? (Nombre o zona)" type="text"/>
-              <button aria-label="Buscar" type="button">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14M14 7l5 5-5 5"/>
-                </svg>
-              </button>
-            </div>
-
-            <div class="quick-locations">
-              <span>Filtro:</span>
-              <button id="filter-all" class="active" type="button">Todos</button>
-              <button id="filter-available" type="button">Solo Libres</button>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <a href="horarios.html" class="primary-button" style="text-decoration: none;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Ver cuadrante semanal
+              </a>
+              <a href="reservas.html" class="secondary-button" style="text-decoration: none; color: var(--ink); border-color: var(--line);">
+                Ver mis reservas
+              </a>
             </div>
           </div>
 
-          <!-- Mapa Visual Ilustrativo Minimalista -->
-          <div class="map-card" aria-label="Mapa de puntos en el campus">
-            <div class="map-grid"></div>
-            <div class="map-road road-one"></div>
-            <div class="map-road road-two"></div>
-            <span class="map-label label-one">ZONA NORTE</span>
-            <span class="map-label label-two">CAMPUS</span>
-            <span class="map-label label-three">PARKING SUR</span>
-
-            <span class="map-pin pin-one">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
-              </svg>
-              <b id="pin-count-1">A</b>
+          <!-- Tarjeta de Turno Próximo -->
+          <div id="hero-next-slot-box" class="home-hero-slot">
+            <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 800; color: var(--muted);">
+              Tu Próximo Turno
             </span>
-
-            <span class="map-pin pin-two">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
-              </svg>
-              <b id="pin-count-2">B</b>
-            </span>
-
-            <span class="map-pin pin-three">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m13.5 2-8 12h6l-1 8 8-12h-6l1-8Z"/>
-              </svg>
-              <b id="pin-count-3">C</b>
-            </span>
-
-            <span class="you-are-here">
-              <i></i>
-            </span>
-
-            <div class="map-summary">
-              <strong id="map-total-count">0</strong>
-              <span>
-                cargadores instalados<br/>
-                en el campus
-              </span>
+            <div id="hero-slot-body">
+              <strong style="font-size: 16px; color: var(--ink); display: block;">Comprobando asignación...</strong>
+              <p style="margin: 4px 0 0; font-size: 12px; color: var(--muted);">Cargando tu horario semanal...</p>
             </div>
           </div>
         </section>
 
-        <!-- Alerta de Feedback -->
-        <div id="home-alert" class="alert-clean" style="margin-top: 24px;"></div>
+        <!-- Métricas del Alumno -->
+        <div class="stats-grid" style="margin-bottom: 24px;">
+          <article class="stat-card-clean">
+            <span class="stat-icon-clean">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
+            <div>
+              <small>Horas Cargadas este Curso</small>
+              <strong id="stat-user-hours">0,0 h</strong>
+              <p id="stat-user-quota-hint">Cuota asignada por alumno</p>
+            </div>
+          </article>
 
-        <!-- Sección de Cargadores -->
+          <article class="stat-card-clean">
+            <span class="stat-icon-clean">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18"/></svg>
+            </span>
+            <div>
+              <small>Turnos de Carga Realizados</small>
+              <strong id="stat-user-bookings-count">0</strong>
+              <p>Sesiones lectivas completadas</p>
+            </div>
+          </article>
+
+          <article class="stat-card-clean">
+            <span class="stat-icon-clean">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+            </span>
+            <div>
+              <small>Vehículo Registrado</small>
+              <strong id="stat-user-plate">Sin vehículo</strong>
+              <p id="stat-user-model">Actualizable en <a href="profile.html" style="text-decoration: underline; color: var(--green-dark);">Mi perfil</a></p>
+            </div>
+          </article>
+        </div>
+
+        <!-- Tira Informativa sobre las Reglas de Carga -->
+        <div class="info-strip-card">
+          <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(185, 244, 70, 0.15); color: var(--green-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div style="flex: 1; font-size: 12px; line-height: 1.5; color: var(--muted);">
+            <strong style="color: var(--ink);">¿Cómo funciona el reparto de plazas?</strong>
+            Las reservas son fijadas automáticamente por la aplicación para garantizar que todos los alumnos roten equitativamente. Cada turno dura un bloque completo de 3 clases lectivas de tarde (<strong>15:10–17:55</strong> o <strong>18:15–21:00</strong>). El patio (<strong>17:55–18:15</strong>) está reservado para mover y cambiar los vehículos.
+          </div>
+        </div>
+
+        <!-- Estado Informativo de los Puntos de Carga del Campus -->
         <section class="section-block">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Red del Centro</span>
-              <h2>Puntos de carga disponibles</h2>
+              <span class="eyebrow">Red del Campus</span>
+              <h2>Puntos de recarga del centro</h2>
             </div>
-            <span id="chargers-count-badge" class="eyebrow" style="color: var(--ink);">0 puntos</span>
+            <span id="chargers-count-badge" class="eyebrow" style="color: var(--ink);">4 cargadores</span>
           </div>
 
           <div id="chargers-container" class="station-grid">
@@ -191,49 +260,6 @@
         </section>
       </div>
     </main>
-  </div>
-
-  <!-- Modal de Reserva Minimalista (Estilo Voltio) -->
-  <div id="booking-modal" class="minimal-modal-backdrop" style="display: none;">
-    <div class="minimal-modal-box">
-      <div class="modal-header-clean">
-        <div>
-          <span class="eyebrow">Reserva de plaza</span>
-          <h3 id="modal-station-name" style="margin: 2px 0 0;">Cargador</h3>
-        </div>
-        <button id="btn-close-modal" class="icon-button" style="width: 34px; height: 34px;" type="button">&times;</button>
-      </div>
-
-      <form id="booking-modal-form" class="modal-body-clean">
-        <input type="hidden" id="modal-charger-id" value="">
-        <div id="modal-error-alert" class="alert-clean alert-danger"></div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <div>
-            <label class="label-text" for="modal-input-start">Entrada</label>
-            <input type="datetime-local" id="modal-input-start" class="input-field" required>
-          </div>
-          <div>
-            <label class="label-text" for="modal-input-end">Salida</label>
-            <input type="datetime-local" id="modal-input-end" class="input-field" required>
-          </div>
-        </div>
-
-        <div id="modal-role-hint" style="padding: 12px 14px; border-radius: 12px; background: var(--paper); font-size: 11px; color: var(--muted); line-height: 1.5;">
-          <!-- Nota de límites según rol -->
-        </div>
-
-        <div class="modal-footer-clean">
-          <button type="button" id="btn-cancel-modal" class="secondary-button" style="color: var(--ink); border-color: var(--line);">Cancelar</button>
-          <button type="submit" id="btn-confirm-booking" class="primary-button">
-            Confirmar reserva
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 12h14M14 7l5 5-5 5"/>
-            </svg>
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -8,6 +8,16 @@ import { renderWeeklyGrid } from '../utils/weeklyScheduleGrid.js';
 let currentWeekStart = null;
 let currentUserId = null;
 
+// Helper: Parsear fecha segura local sin saltos de zona horaria
+function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length === 3) {
+    return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+  }
+  return new Date(dateStr);
+}
+
 // Helper: Formatear fecha local YYYY-MM-DD
 function toIsoDate(d) {
   const year = d.getFullYear();
@@ -117,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnPrev) {
     btnPrev.addEventListener('click', () => {
-      const cur = new Date(currentWeekStart);
+      const cur = parseLocalDate(currentWeekStart);
       cur.setDate(cur.getDate() - 7);
       currentWeekStart = toIsoDate(cur);
       loadSchedule(currentWeekStart);
@@ -126,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnNext) {
     btnNext.addEventListener('click', () => {
-      const cur = new Date(currentWeekStart);
+      const cur = parseLocalDate(currentWeekStart);
       cur.setDate(cur.getDate() + 7);
       currentWeekStart = toIsoDate(cur);
       loadSchedule(currentWeekStart);

@@ -22,7 +22,7 @@ export function requireAuth(options = { requireAdmin: false }) {
     return false;
   }
 
-  return true;
+  return storage.getUser() || true;
 }
 
 /**
